@@ -5,13 +5,13 @@ use crate::movable::*;
 
 // Player's Rocket
 
-static PLAYER_RATE_OF_TURN: f32 = TAU * 3.0;
-static PLAYER_RATE_OF_TURN_DRAG: f32 = TAU * 6.0;
-static PLAYER_RATE_OF_ACCELERATION: f32 = 200.0;
+static PLAYER_RATE_OF_TURN: f32 = 999.0; // Instant rotation acceleration / deceleration
+static PLAYER_RATE_OF_TURN_DRAG: f32 = 999.0;
+static PLAYER_RATE_OF_ACCELERATION: f32 = 500.0;
 static PLAYER_RATE_OF_ACCELERATION_DRAG: f32 = 180.0;
-static PLAYER_MAX_SPEED: f32 = 180.0;
+static PLAYER_MAX_SPEED: f32 = 500.0;
 static PLAYER_MAX_DRAG_SPEED: f32 = 50.0;
-static PLAYER_MAX_ROTATION_SPEED: f32 = TAU * 2.0;
+static PLAYER_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
 static PLAYER_Y: f32 = 10.0;
 
 pub struct PlayerPlugin;

@@ -149,7 +149,7 @@ fn moveable_logging_system(
     let just_finished = timer.0.tick(time.delta()).just_finished();
     if just_finished {
         for (entity, movable) in query.iter() {
-            println!("{:?} = {:?}", entity, movable);
+            info!("{:?} = {:?}", entity, movable);
         }
     }
 }
