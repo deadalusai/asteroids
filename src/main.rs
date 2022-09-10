@@ -1,50 +1,34 @@
+mod movable;
+mod player;
+
 use bevy::prelude::*;
-
-#[derive(Component)]
-struct Person;
-
-#[derive(Component)]
-struct Name(String);
+use movable::*;
+use player::*;
 
 fn main() {
     App::new()
+        .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
+        .insert_resource(WindowDescriptor {
+            title: "Asteroids".into(),
+            width: 800.,
+            height: 600.,
+            ..Default::default()
+        })
         .add_plugins(DefaultPlugins)
-        .add_plugin(HelloPlugin)
+        .add_plugin(PlayerPlugin)
+        .add_plugin(MovablePlugin)
+        .add_startup_system(startup_system)
         .run();
 }
 
-pub struct HelloPlugin;
-
-fn add_people(mut commands: Commands) {
-    commands.spawn().insert(Person).insert(Name("Elaina Proctor".to_string()));
-    commands.spawn().insert(Person).insert(Name("Renzo Hume".to_string()));
-    commands.spawn().insert(Person).insert(Name("Zayna Nieves".to_string()));
-}
-
-struct GreetTimer(Timer);
-
-impl GreetTimer {
-    fn test_timer_just_finished(&mut self, time: &Time) -> bool {
-        self.0.tick(time.delta()).just_finished()
-    }
-}
-
-fn greet_people(
-    time: Res<Time>,
-    mut timer: ResMut<GreetTimer>,
-    query: Query<&Name, With<Person>>
+fn startup_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    if timer.test_timer_just_finished(&time) {
-        for name in query.iter() {
-            println!("hello {}!", name.0);
-        }
-    }
-}
+    // Camera
+    commands.spawn_bundle(Camera2dBundle::default());
 
-impl Plugin for HelloPlugin {
-    fn build(&self, app: &mut App) {
-        app.insert_resource(GreetTimer(Timer::from_seconds(2.0, true)));
-        app.add_startup_system(add_people);
-        app.add_system(greet_people);
-    }
+    // Player
+    PlayerRocket::spawn(&mut commands, &mut meshes, &mut materials);
 }
