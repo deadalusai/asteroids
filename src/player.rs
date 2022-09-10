@@ -126,14 +126,3 @@ fn rocket_keyboard_event_system(
 
 // #[derive(Component)]
 // struct Bullet;
-
-// // Asteroids
-
-// enum AsteroidSize {
-//     Small, Medium, Large
-// }
-
-// #[derive(Component)]
-// struct Asteroid {
-//     size: AsteroidSize,
-// }
