@@ -1,9 +1,11 @@
 mod movable;
 mod player;
+mod torus;
 
 use bevy::prelude::*;
 use movable::*;
 use player::*;
+use torus::*;
 
 fn main() {
     App::new()
@@ -17,8 +19,14 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(PlayerPlugin)
         .add_plugin(MovablePlugin)
+        .add_plugin(TorusConstraintPlugin)
         .add_startup_system(startup_system)
         .run();
+}
+
+#[derive(Component)]
+struct Viewport {
+
 }
 
 fn startup_system(

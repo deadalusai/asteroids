@@ -2,23 +2,25 @@ use std::{f32::consts::TAU, ops::Neg};
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use crate::movable::*;
+use crate::torus::*;
 
 // Player's Rocket
 
-static PLAYER_RATE_OF_TURN: f32 = 999.0; // Instant rotation acceleration / deceleration
-static PLAYER_RATE_OF_TURN_DRAG: f32 = 999.0;
-static PLAYER_RATE_OF_ACCELERATION: f32 = 500.0;
-static PLAYER_RATE_OF_ACCELERATION_DRAG: f32 = 180.0;
-static PLAYER_MAX_SPEED: f32 = 500.0;
-static PLAYER_MAX_DRAG_SPEED: f32 = 50.0;
-static PLAYER_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
-static PLAYER_Y: f32 = 10.0;
+static ROCKET_RATE_OF_TURN: f32 = 999.0; // Instant rotation acceleration / deceleration
+static ROCKET_RATE_OF_TURN_DRAG: f32 = 999.0;
+static ROCKET_RATE_OF_ACCELERATION: f32 = 500.0;
+static ROCKET_RATE_OF_ACCELERATION_DRAG: f32 = 180.0;
+static ROCKET_MAX_SPEED: f32 = 500.0;
+static ROCKET_MAX_DRAG_SPEED: f32 = 50.0;
+static ROCKET_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
+static ROCKET_SCALE: f32 = 50.0;
+static ROCKET_Y: f32 = 10.0;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(CoreStage::Update, player_keyboard_event_system);
+        app.add_system_to_stage(CoreStage::Update, rocket_keyboard_event_system);
     }
 }
 
@@ -42,12 +44,13 @@ impl PlayerRocket {
                 rotational_velocity: 0.,
                 rotational_acceleration: None,
             })
+            .insert(TorusConstraint::new(ROCKET_SCALE))
             .insert_bundle(MaterialMesh2dBundle {
                 mesh: meshes.add(create_rocket_mesh()).into(),
                 material: materials.add(ColorMaterial::from(Color::rgba(1., 0.,  0., 1.))),
                 transform: Transform::default()
-                    .with_translation(Vec3::new(0., 0., PLAYER_Y))
-                    .with_scale(Vec3::splat(50.0)),
+                    .with_translation(Vec3::new(0., 0., ROCKET_Y))
+                    .with_scale(Vec3::splat(ROCKET_SCALE)),
                 ..Default::default()
             });
     }
@@ -70,7 +73,7 @@ fn create_rocket_mesh() -> Mesh {
     mesh
 }
 
-fn player_keyboard_event_system(
+fn rocket_keyboard_event_system(
     kb: Res<Input<KeyCode>>,
     mut query: Query<&mut Movable, With<PlayerRocket>>,
 ) {
@@ -92,23 +95,23 @@ fn player_keyboard_event_system(
 
         // Update rotational acceleration
         movable.rotational_acceleration = match (turning_left, turning_right) {
-            (true, false) => Some(Acceleration::new(-PLAYER_RATE_OF_TURN).with_limit(AcceleratingTo::Max(PLAYER_MAX_ROTATION_SPEED))),
-            (false, true) => Some(Acceleration::new(PLAYER_RATE_OF_TURN).with_limit(AcceleratingTo::Max(PLAYER_MAX_ROTATION_SPEED))),
+            (true, false) => Some(Acceleration::new(-ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),
+            (false, true) => Some(Acceleration::new(ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),
             // Apply "turn drag"
-            _ if movable.rotational_velocity > 0. => Some(Acceleration::new(-PLAYER_RATE_OF_TURN_DRAG).with_limit(AcceleratingTo::Zero)),
-            _ if movable.rotational_velocity < 0. => Some(Acceleration::new(PLAYER_RATE_OF_TURN_DRAG).with_limit(AcceleratingTo::Zero)),
+            _ if movable.rotational_velocity > 0. => Some(Acceleration::new(-ROCKET_RATE_OF_TURN_DRAG).with_limit(AcceleratingTo::Zero)),
+            _ if movable.rotational_velocity < 0. => Some(Acceleration::new(ROCKET_RATE_OF_TURN_DRAG).with_limit(AcceleratingTo::Zero)),
             _ => None
         };
 
         // Update acceleration
         movable.acceleration =
             if accelerating {
-                let acc = movable.heading_normal() * PLAYER_RATE_OF_ACCELERATION;
-                Some(Acceleration::new(acc).with_limit(AcceleratingTo::Max(PLAYER_MAX_SPEED)))
+                let acc = movable.heading_normal() * ROCKET_RATE_OF_ACCELERATION;
+                Some(Acceleration::new(acc).with_limit(AcceleratingTo::Max(ROCKET_MAX_SPEED)))
             }
             // Apply "space drag"
-            else if movable.velocity.length() > PLAYER_MAX_DRAG_SPEED {
-                let acc = movable.velocity.normalize().neg() * PLAYER_RATE_OF_ACCELERATION_DRAG;
+            else if movable.velocity.length() > ROCKET_MAX_DRAG_SPEED {
+                let acc = movable.velocity.normalize().neg() * ROCKET_RATE_OF_ACCELERATION_DRAG;
                 Some(Acceleration::new(acc).with_limit(AcceleratingTo::Zero))
             }
             // Not accelerating
