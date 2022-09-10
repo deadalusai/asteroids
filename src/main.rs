@@ -29,11 +29,6 @@ fn main() {
         .run();
 }
 
-#[derive(Component)]
-struct Viewport {
-
-}
-
 fn startup_system(
     mut commands: Commands,
     mut player_spawn_events: EventWriter<SpawnPlayerRocketEvent>,
@@ -46,13 +41,14 @@ fn startup_system(
     player_spawn_events.send(SpawnPlayerRocketEvent);
 
     // Asteroids
-    for _ in 0..2 {
-        spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Large));
-    }
-    for _ in 0..3 {
-        spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Medium));
-    }
-    for _ in 0..5 {
-        spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Small));
+    let asteroids = [
+        (AsteroidSize::Large, 2),
+        (AsteroidSize::Medium, 3),
+        (AsteroidSize::Small, 5),
+    ];
+    for &(size, count) in &asteroids {
+        for _ in 0..count {
+            spawn_events.send(SpawnAsteroidEvent(size));
+        }
     }
 }

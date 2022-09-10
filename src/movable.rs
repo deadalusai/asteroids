@@ -89,13 +89,15 @@ fn movable_system(
                 },
                 // Apply "decelerating to zero" limit
                 Zero => {
-                    // Determine if the new vector lies on the line between ZERO and the original vector
+                    // Determine if the new vector lies on the line between ZERO and the original vector.
+                    // Convert both vectors to the unit and compare them - if they are (close to) the same, then both vectors are 
+                    // on the same side of zero. If they differ, then the second vector is on the other side of zero (i.e. has gone past it)
                     if new_v.normalize().abs_diff_eq(movable.velocity.normalize(), 0.1) {
-                        // If it does, we're still decelerating
+                        // Same side of zero - we're still decelerating
                         new_v
                     }
                     else {
-                        // If it does not, then we've blown past zero
+                        // Other side of zero - we've blown past it
                         Vec2::ZERO
                     }
                 },

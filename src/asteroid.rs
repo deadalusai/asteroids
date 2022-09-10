@@ -74,7 +74,7 @@ fn asteroid_scale(size: AsteroidSize) -> f32 {
     }
 }
 
-fn random_unit_point() -> Vec2 {
+fn random_unit_vec2() -> Vec2 {
     let x = random::<f32>() * 2.0 - 1.0;
     let y = random::<f32>() * 2.0 - 1.0;
     Vec2::new(x, y).normalize()
@@ -86,9 +86,9 @@ fn spawn_asteroid(
     window: &Window,
     size: AsteroidSize
 ) {
-    let position = random_unit_point() * Vec2::new(window.width() / 2.0, window.height() / 2.0);
-    let velocity = Vec2::splat(ASTEROID_MIN_SPEED) + random_unit_point() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
-    let rotation = random::<f32>() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
+    let position = random_unit_vec2() * Vec2::new(window.width() / 2.0, window.height() / 2.0);
+    let velocity = ASTEROID_MIN_SPEED + random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
+    let rotation = ASTEROID_MIN_SPIN_RATE + random::<f32>() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
 
     commands
         .spawn()

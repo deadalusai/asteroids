@@ -23,17 +23,28 @@ fn torus_constraint_system(
     mut query: Query<(&TorusConstraint, &mut Movable)>
 ) {
     // NOTE: 0,0 is in the middle of the window.
-    let half_width = windows.get_primary().unwrap().width() / 2.;
-    let half_height = windows.get_primary().unwrap().height() / 2.;
+    let win = windows.get_primary().unwrap();
+    let half_width = win.width() / 2.;
+    let half_height = win.height() / 2.;
 
-    for (TorusConstraint(gutter_size), mut movable) in query.iter_mut() {
+    for (&TorusConstraint(gutter_size), mut movable) in query.iter_mut() {
+        let right = half_width + gutter_size;
+        let left = -half_width - gutter_size;
+        let top = half_height + gutter_size;
+        let bottom = -half_height - gutter_size;
         // Has this Movable left the screen?
         // Teleport them to the other side of the Torus
-        if movable.position.x > half_width + gutter_size || movable.position.x < -half_width - gutter_size {
-            movable.position.x = -movable.position.x;
+        if movable.position.x > right {
+            movable.position.x = left;
         }
-        if movable.position.y > half_height + gutter_size || movable.position.y < -half_height - gutter_size {
-            movable.position.y = -movable.position.y;
+        if movable.position.x < left {
+            movable.position.x = right;
+        }
+        if movable.position.y > top {
+            movable.position.y = bottom;
+        }
+        if movable.position.y < bottom {
+            movable.position.y = top;
         }
     }
 }
