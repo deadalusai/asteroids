@@ -7,10 +7,8 @@ pub struct MovablePlugin;
 
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(MovableLogTimer(Timer::from_seconds(1., true)));
         app.add_system_to_stage(CoreStage::Update, movable_system);
         app.add_system_to_stage(CoreStage::Update, movable_update_transform_system.after(movable_system));
-        app.add_system(moveable_logging_system);
     }
 }
 
@@ -136,20 +134,5 @@ fn movable_update_transform_system(mut query: Query<(&Movable, &mut Transform)>)
         transform.translation.x = movable.position.x;
         transform.translation.y = movable.position.y;
         transform.rotation = Quat::from_rotation_z(-movable.heading_angle);
-    }
-}
-
-struct MovableLogTimer(Timer);
-
-fn moveable_logging_system(
-    time: Res<Time>,
-    mut timer: ResMut<MovableLogTimer>,
-    query: Query<(Entity, &Movable)>
-) {
-    let just_finished = timer.0.tick(time.delta()).just_finished();
-    if just_finished {
-        for (entity, movable) in query.iter() {
-            info!("{:?} = {:?}", entity, movable);
-        }
     }
 }

@@ -11,12 +11,11 @@ use asteroid::*;
 
 fn main() {
     App::new()
-        .add_event::<SpawnAsteroidEvent>()
         .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
         .insert_resource(WindowDescriptor {
             title: "Asteroids".into(),
-            width: 800.,
-            height: 600.,
+            width: 1600.,
+            height: 1200.,
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
@@ -24,6 +23,8 @@ fn main() {
         .add_plugin(TorusConstraintPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(AsteroidPlugin)
+        .add_event::<SpawnPlayerRocketEvent>()
+        .add_event::<SpawnAsteroidEvent>()
         .add_startup_system(startup_system)
         .run();
 }
@@ -35,17 +36,23 @@ struct Viewport {
 
 fn startup_system(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut player_spawn_events: EventWriter<SpawnPlayerRocketEvent>,
     mut spawn_events: EventWriter<SpawnAsteroidEvent>,
 ) {
     // Camera
     commands.spawn_bundle(Camera2dBundle::default());
 
     // Player
-    PlayerRocket::spawn(&mut commands, &mut meshes, &mut materials);
+    player_spawn_events.send(SpawnPlayerRocketEvent);
 
-    spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Large));
-    spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Medium));
-    spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Small));
+    // Asteroids
+    for _ in 0..2 {
+        spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Large));
+    }
+    for _ in 0..3 {
+        spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Medium));
+    }
+    for _ in 0..5 {
+        spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Small));
+    }
 }

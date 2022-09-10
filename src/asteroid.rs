@@ -27,26 +27,9 @@ fn asset_initialisation_system(
     mut materials: ResMut<Assets<ColorMaterial>>
 ) {
     commands.insert_resource(AsteroidAssets {
-        asteroid_mesh: meshes.add(create_asteroid_mesh()),
-        asteroid_material: materials.add(ColorMaterial::from(Color::rgba(1., 0.,  0., 1.))),
+        asteroid_mesh: meshes.add(Mesh::from(shape::RegularPolygon::new(1.0, 5))),
+        asteroid_material: materials.add(ColorMaterial::from(Color::rgba(0.6, 0.6, 0.6, 1.))),
     });
-}
-
-fn create_asteroid_mesh() -> Mesh {
-    let mut mesh = Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList);
-  
-    mesh.insert_attribute(
-      Mesh::ATTRIBUTE_POSITION,
-      vec![[0.0, 0.5, 0.0], [-0.25, -0.5, 0.0], [0.25, -0.5, 0.0]],
-    );
-    mesh.set_indices(Some(bevy::render::mesh::Indices::U32(vec![0, 1, 2])));
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0, 0.0, 1.0]; 3]);
-    mesh.insert_attribute(
-      Mesh::ATTRIBUTE_UV_0,
-      vec![[0.5, 0.0], [0.0, 1.0], [1.0, 1.0]],
-    );
-  
-    mesh
 }
 
 // Asteroids
@@ -54,8 +37,11 @@ fn create_asteroid_mesh() -> Mesh {
 static ASTEROID_Y: f32 = 20.0;
 static ASTEROID_MAX_SPEED: f32 = 350.0;
 static ASTEROID_MIN_SPEED: f32 = 80.0;
-static ASTEROID_MAX_SPIN_RATE: f32 = TAU;
-static ASTEROID_MIN_SPIN_RATE: f32 = TAU * 0.2;
+static ASTEROID_MAX_SPIN_RATE: f32 = TAU * 0.7;
+static ASTEROID_MIN_SPIN_RATE: f32 = TAU * 0.05;
+static ASTEROID_SCALE_SMALL: f32 = 25.0;
+static ASTEROID_SCALE_MEDIUM: f32 = 70.0;
+static ASTEROID_SCALE_LARGE: f32 = 120.0;
 
 #[derive(Clone, Copy)]
 pub enum AsteroidSize {
@@ -63,15 +49,28 @@ pub enum AsteroidSize {
 }
 
 #[derive(Component)]
-pub struct Asteroid {
-    size: AsteroidSize,
+pub struct Asteroid;
+
+// Spawning
+
+pub struct SpawnAsteroidEvent(pub AsteroidSize);
+
+fn asteroid_spawn_system(
+    mut spawn_events: EventReader<SpawnAsteroidEvent>,
+    windows: Res<Windows>,
+    assets: Res<AsteroidAssets>,
+    mut commands: Commands
+) {
+    for &SpawnAsteroidEvent(size) in spawn_events.iter() {
+        spawn_asteroid(&assets, &mut commands, windows.get_primary().unwrap(), size);
+    }
 }
 
 fn asteroid_scale(size: AsteroidSize) -> f32 {
     match size {
-        AsteroidSize::Small => 40.0,
-        AsteroidSize::Medium => 90.0,
-        AsteroidSize::Large => 160.0,
+        AsteroidSize::Small => ASTEROID_SCALE_SMALL,
+        AsteroidSize::Medium => ASTEROID_SCALE_MEDIUM,
+        AsteroidSize::Large => ASTEROID_SCALE_LARGE,
     }
 }
 
@@ -93,7 +92,7 @@ fn spawn_asteroid(
 
     commands
         .spawn()
-        .insert(Asteroid { size })
+        .insert(Asteroid)
         .insert(Movable {
             position: position,
             velocity: velocity,
@@ -111,17 +110,4 @@ fn spawn_asteroid(
                 .with_scale(Vec3::splat(asteroid_scale(size))),
             ..Default::default()
         });
-}
-
-pub struct SpawnAsteroidEvent(pub AsteroidSize);
-
-fn asteroid_spawn_system(
-    mut spawn_events: EventReader<SpawnAsteroidEvent>,
-    windows: Res<Windows>,
-    assets: Res<AsteroidAssets>,
-    mut commands: Commands
-) {
-    for &SpawnAsteroidEvent(size) in spawn_events.iter() {
-        spawn_asteroid(&assets, &mut commands, windows.get_primary().unwrap(), size);
-    }
 }

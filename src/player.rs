@@ -20,40 +20,28 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(CoreStage::Update, rocket_keyboard_event_system);
+        app.add_startup_system(asset_initialisation_system);
+        app.add_system(rocket_keyboard_event_system);
+        app.add_system(asteroid_spawn_system);
     }
 }
 
-#[derive(Component)]
-pub struct PlayerRocket;
+// Setup
 
-impl PlayerRocket {
-    pub fn spawn(
-        commands: &mut Commands,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<ColorMaterial>>
-    ) {
-        commands
-            .spawn()
-            .insert(PlayerRocket)
-            .insert(Movable {
-                position: Vec2::new(0., 0.),
-                velocity: Vec2::splat(0.),
-                acceleration: None,
-                heading_angle: 0.,
-                rotational_velocity: 0.,
-                rotational_acceleration: None,
-            })
-            .insert(TorusConstraint::new(ROCKET_SCALE))
-            .insert_bundle(MaterialMesh2dBundle {
-                mesh: meshes.add(create_rocket_mesh()).into(),
-                material: materials.add(ColorMaterial::from(Color::rgba(1., 0.,  0., 1.))),
-                transform: Transform::default()
-                    .with_translation(Vec3::new(0., 0., ROCKET_Y))
-                    .with_scale(Vec3::splat(ROCKET_SCALE)),
-                ..Default::default()
-            });
-    }
+struct PlayerAssets {
+    rocket_mesh: Handle<Mesh>,
+    rocket_material: Handle<ColorMaterial>,
+}
+
+fn asset_initialisation_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>
+) {
+    commands.insert_resource(PlayerAssets {
+        rocket_mesh: meshes.add(create_rocket_mesh()),
+        rocket_material: materials.add(ColorMaterial::from(Color::rgba(1., 0.,  0., 1.))),
+    });
 }
 
 fn create_rocket_mesh() -> Mesh {
@@ -73,10 +61,20 @@ fn create_rocket_mesh() -> Mesh {
     mesh
 }
 
+// Entity
+
+#[derive(Component)]
+pub struct PlayerRocket;
+
 fn rocket_keyboard_event_system(
     kb: Res<Input<KeyCode>>,
     mut query: Query<&mut Movable, With<PlayerRocket>>,
+    mut spawn_events: EventWriter<SpawnPlayerRocketEvent>,
 ) {
+    if kb.just_released(KeyCode::T) {
+        spawn_events.send(SpawnPlayerRocketEvent);
+    }
+
     let turning_left = kb.pressed(KeyCode::Left);
     let turning_right = kb.pressed(KeyCode::Right);
     let accelerating = kb.pressed(KeyCode::Up);
@@ -126,3 +124,43 @@ fn rocket_keyboard_event_system(
 
 // #[derive(Component)]
 // struct Bullet;
+
+// Spawning
+
+pub struct SpawnPlayerRocketEvent;
+
+fn asteroid_spawn_system(
+    mut spawn_events: EventReader<SpawnPlayerRocketEvent>,
+    assets: Res<PlayerAssets>,
+    mut commands: Commands
+) {
+    for _ in spawn_events.iter() {
+        spawn_player_rocket(&assets, &mut commands);
+    }
+}
+
+fn spawn_player_rocket(
+    assets: &Res<PlayerAssets>,
+    commands: &mut Commands
+) {
+    commands
+        .spawn()
+        .insert(PlayerRocket)
+        .insert(Movable {
+            position: Vec2::new(0., 0.),
+            velocity: Vec2::splat(0.),
+            acceleration: None,
+            heading_angle: 0.,
+            rotational_velocity: 0.,
+            rotational_acceleration: None,
+        })
+        .insert(TorusConstraint::new(ROCKET_SCALE))
+        .insert_bundle(MaterialMesh2dBundle {
+            mesh: assets.rocket_mesh.clone().into(),
+            material: assets.rocket_material.clone(),
+            transform: Transform::default()
+                .with_translation(Vec3::new(0., 0., ROCKET_Y))
+                .with_scale(Vec3::splat(ROCKET_SCALE)),
+            ..Default::default()
+        });
+}
