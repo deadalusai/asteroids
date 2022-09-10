@@ -8,9 +8,9 @@ use crate::torus::*;
 
 static ROCKET_RATE_OF_TURN: f32 = 999.0; // Instant rotation acceleration / deceleration
 static ROCKET_RATE_OF_TURN_DRAG: f32 = 999.0;
-static ROCKET_RATE_OF_ACCELERATION: f32 = 500.0;
+static ROCKET_RATE_OF_ACCELERATION: f32 = 700.0;
 static ROCKET_RATE_OF_ACCELERATION_DRAG: f32 = 180.0;
-static ROCKET_MAX_SPEED: f32 = 500.0;
+static ROCKET_MAX_SPEED: f32 = 900.0;
 static ROCKET_MAX_DRAG_SPEED: f32 = 50.0;
 static ROCKET_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
 static ROCKET_SCALE: f32 = 50.0;

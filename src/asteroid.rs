@@ -86,7 +86,7 @@ fn spawn_asteroid(
     window: &Window,
     size: AsteroidSize
 ) {
-    let position = random_unit_vec2() * Vec2::new(window.width() / 2.0, window.height() / 2.0);
+    let position = random_unit_vec2() * Vec2::new(window.width(), window.height()) / 2.0;
     let velocity = ASTEROID_MIN_SPEED + random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
     let rotation = ASTEROID_MIN_SPIN_RATE + random::<f32>() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
 
