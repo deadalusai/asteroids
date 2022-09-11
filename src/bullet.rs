@@ -32,6 +32,7 @@ struct BulletAssets {
 fn asset_initialisation_system(
     mut commands: Commands
 ) {
+    // See: https://yqnn.github.io/svg-path-editor/
     let bullet_dimension = 2.0;
     let bullet_path = "M 0 1 L 0 -1";
 

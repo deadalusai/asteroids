@@ -46,6 +46,7 @@ struct PlayerAssets {
 fn asset_initialisation_system(
     mut commands: Commands,
 ) {
+    // See: https://yqnn.github.io/svg-path-editor/
     let rocket_dimension = (4.0, 6.0);
     let rocket_path = "M 0 -3 L -2 2 M -1.6 1 L 1.6 1 M 0 -3 L 2 2";
     let exhaust_path = "M -1 1 L 0 3 L 1 1";
