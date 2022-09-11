@@ -13,6 +13,7 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use viewport::*;
 use movable::*;
+use hud::*;
 use hit::*;
 use player::*;
 use bullet::*;
@@ -46,6 +47,7 @@ fn main() {
         .add_plugin(ExplosionPlugin)
         .add_plugin(MovablePlugin)
         .add_plugin(HitEventsPlugin)
+        .add_plugin(HeadsUpDisplayPlugin)
         .add_startup_system(startup_system)
         .add_system(global_keyboard_event_system)
         .run();

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 // Plugin
 
-struct HeadsUpDisplayPlugin;
+pub struct HeadsUpDisplayPlugin;
 
 impl Plugin for HeadsUpDisplayPlugin {
     fn build(&self, app: &mut App) {
@@ -24,12 +24,13 @@ struct ColorText;
 
 fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     
-    // Create a TextBundle that has a Text with a single section.
+    let font_dotgothic16 = asset_server.load("fonts/RedHatMono-Light.ttf");
+    
     let color_text_bundle =
         TextBundle::from_section(
-            "hello\nbevy!",
+            "ASTEROIDS",
             TextStyle {
-                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                font: font_dotgothic16.clone(),
                 font_size: 100.0,
                 color: Color::WHITE,
             },
@@ -56,19 +57,24 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
             TextSection::new(
                 "FPS: ",
                 TextStyle {
-                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font: font_dotgothic16.clone(),
                     font_size: 60.0,
                     color: Color::WHITE,
                 },
             ),
             TextSection::from_style(TextStyle {
-                font: asset_server.load("fonts/FiraMono-Medium.ttf"),
+                font: font_dotgothic16,
                 font_size: 60.0,
                 color: Color::GOLD,
             }),
         ])
         .with_style(Style {
             align_self: AlignSelf::FlexEnd,
+            position: UiRect {
+                top: Val::Px(5.0),
+                left: Val::Px(15.0),
+                ..default()
+            },
             ..default()
         });
     
