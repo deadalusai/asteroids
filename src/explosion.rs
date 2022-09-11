@@ -149,6 +149,6 @@ fn explosion_system(
         // Slowly fade to black
         let t = time_passed_secs / explosion.despawn_after_secs; // t is 0.0 to 1.0;
         let new_alpha = 1.0 - t;
-        try_update_stroke_alpha(&mut draw_mode, new_alpha);
+        try_update_drawmode_alpha(&mut draw_mode, new_alpha);
     }
 }

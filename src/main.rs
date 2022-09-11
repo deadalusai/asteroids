@@ -7,6 +7,7 @@ mod bullet;
 mod asteroid;
 mod explosion;
 mod viewport;
+mod hud;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;

@@ -229,7 +229,7 @@ fn rocket_exhaust_system(
 
     for (exhaust, mut draw_mode) in query.iter_mut() {
         let new_alpha = if exhaust.is_firing { exhaust_opacity_over_t(t_secs) } else { 0. };
-        try_update_stroke_alpha(&mut draw_mode, new_alpha);
+        try_update_drawmode_alpha(&mut draw_mode, new_alpha);
     }
 }
 

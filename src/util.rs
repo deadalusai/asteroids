@@ -1,17 +1,24 @@
 use bevy::prelude::{Color, Vec2};
-use bevy_prototype_lyon::prelude::{DrawMode, StrokeMode};
-use bevy_prototype_lyon::prelude::tess::geom::euclid::approxeq::ApproxEq;
+use bevy_prototype_lyon::prelude::DrawMode;
 
-pub fn try_update_stroke_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
-    let stroke = match draw_mode {
-        DrawMode::Stroke(stroke) => *stroke,
-        _ => panic!("Called read_stroke_mode on non-stroke draw mode"),
-    };
-    if !stroke.color.a().approx_eq(&new_alpha) {
-        // Update the opacity of the stroke
-        let [r, g, b, _] = stroke.color.as_rgba_f32();
-        let color = Color::rgba(r, g, b, new_alpha);
-        *draw_mode = DrawMode::Stroke(StrokeMode { color, ..stroke })
+pub fn try_update_drawmode_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
+
+    fn update_color_alpha(color: &mut Color, a: f32) {
+        let alpha_ref = match color {
+            Color::Rgba { ref mut alpha, .. } => alpha,
+            Color::RgbaLinear { ref mut alpha, .. } => alpha,
+            Color::Hsla { ref mut alpha, .. } => alpha,
+        };
+        *alpha_ref = a;
+    }
+
+    match draw_mode {
+        DrawMode::Stroke(stroke) => update_color_alpha(&mut stroke.color, new_alpha),
+        DrawMode::Fill(fill) => update_color_alpha(&mut fill.color, new_alpha),
+        DrawMode::Outlined { fill_mode, outline_mode } => {
+            update_color_alpha(&mut fill_mode.color, new_alpha);
+            update_color_alpha(&mut outline_mode.color, new_alpha);
+        },
     }
 }
 
