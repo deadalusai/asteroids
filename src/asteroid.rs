@@ -2,6 +2,7 @@ use std::f32::consts::TAU;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use crate::bullet::BulletCollidable;
 use crate::movable::*;
 use crate::torus::*;
 use crate::draw::*;
@@ -12,6 +13,7 @@ impl Plugin for AsteroidPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(asset_initialisation_system);
         app.add_system(asteroid_spawn_system);
+        app.add_system(asteroid_collision_system);
         app.add_event::<SpawnAsteroidEvent>();
     }
 }
@@ -54,6 +56,10 @@ pub enum AsteroidSize {
 
 #[derive(Component)]
 pub struct Asteroid;
+
+/// Marker component which indicates that an entity should be considered for asteroid collisions
+#[derive(Component)]
+pub struct AsteroidCollidable;
 
 // Spawning
 
@@ -126,8 +132,27 @@ fn spawn_asteroid(
             rotational_acceleration: None,
         })
         .insert(TorusConstraint)
+        .insert(BulletCollidable)
         .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
         // Collision detection
         .insert(sepax)
         .insert(sepax_movable);
+}
+
+// Collision detection
+
+fn  asteroid_collision_system(
+    mut commands: Commands,
+    asteroids: Query<(Entity, &bevy_sepax2d::components::Sepax), With<Asteroid>>,
+    collidables: Query<(Entity, &bevy_sepax2d::components::Sepax), With<AsteroidCollidable>>
+)
+{
+    for (_, bullet) in asteroids.iter() {
+        for (target_entity, target) in collidables.iter() {
+            if sepax2d::sat_overlap(bullet.shape(), target.shape()) {
+                // Collision!
+                commands.entity(target_entity).despawn_recursive();
+            }
+        }
+    }
 }

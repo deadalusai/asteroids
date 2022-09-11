@@ -30,9 +30,7 @@ struct BulletAssets {
 }
 
 fn asset_initialisation_system(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>
+    mut commands: Commands
 ) {
     let bullet_dimension = 2.0;
     let bullet_path = "M 0 1 L 0 -1";
@@ -49,6 +47,10 @@ fn asset_initialisation_system(
 pub struct Bullet {
     despawn_after: Duration,
 }
+
+/// Marker component which indicates that an entity should be considered for bullet collisions
+#[derive(Component)]
+pub struct BulletCollidable;
 
 // Spawning
 
@@ -77,7 +79,7 @@ fn spawn_bullet(
         .with_scale(Vec3::splat(scale));
 
     // collision detection
-    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(spawn.position.into(), scale / 2.));
+    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(spawn.position.into(), scale * assets.bullet_dimension / 2.));
     let sepax = bevy_sepax2d::components::Sepax { convex };
     let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
 
@@ -196,15 +198,15 @@ fn bullet_controller_system(
 fn  bullet_collision_system(
     mut commands: Commands,
     bullets: Query<(Entity, &bevy_sepax2d::components::Sepax), With<Bullet>>,
-    targets: Query<(Entity, &bevy_sepax2d::components::Sepax), Without<Bullet>>
+    collidables: Query<(Entity, &bevy_sepax2d::components::Sepax), With<BulletCollidable>>
 )
 {
     for (bullet_entity, bullet) in bullets.iter() {
-        for (target_entity, target) in targets.iter() {
+        for (target_entity, target) in collidables.iter() {
             if sepax2d::sat_overlap(bullet.shape(), target.shape()) {
                 // Collision!
-                commands.entity(bullet_entity).despawn();
-                commands.entity(target_entity).despawn();
+                commands.entity(bullet_entity).despawn_recursive();
+                commands.entity(target_entity).despawn_recursive();
             }
         }
     }

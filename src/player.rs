@@ -2,6 +2,7 @@ use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use bevy_prototype_lyon::prelude::tess::geom::euclid::approxeq::ApproxEq;
+use crate::asteroid::AsteroidCollidable;
 use crate::bullet::*;
 use crate::movable::*;
 use crate::torus::*;
@@ -172,9 +173,11 @@ fn spawn_player_rocket(
     let b_start_offset = (rocket_shape_height / 2.) * scale; // Offset the bullets forward of the rocket
     
     // Collision detection
-    // let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(position.into(), scale * diameter / 2.0));
-    // let sepax = bevy_sepax2d::components::Sepax { convex };
-    // let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
+    // NOTE: Currently using a spherical collision box, shrunk down to fit within the hull
+    // TODO(benf): Make a triangular Polygon collision shape
+    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(position.into(), scale * rocket_shape_height / 4.0));
+    let sepax = bevy_sepax2d::components::Sepax { convex };
+    let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
 
     commands
         .spawn()
@@ -189,9 +192,10 @@ fn spawn_player_rocket(
         })
         .insert(BulletController::new(b_fire_rate, b_start_offset, b_bullet_speed, b_bullet_max_age_secs))
         .insert(TorusConstraint)
+        .insert(AsteroidCollidable)
         // Collision detection
-        // .insert(sepax)
-        // .insert(sepax_movable)
+        .insert(sepax)
+        .insert(sepax_movable)
         // Rendering
         .insert_bundle(GeometryBuilder::build_as(
             &assets.rocket_shape,
