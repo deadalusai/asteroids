@@ -4,9 +4,9 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::bullet::BulletCollidable;
 use crate::hit::HitEvent;
-use crate::explosion::*;
+use crate::viewport::*;
 use crate::movable::*;
-use crate::torus::*;
+use crate::explosion::*;
 use crate::svg::*;
 use crate::util::*;
 
@@ -73,13 +73,13 @@ pub struct AsteroidCollidable;
 pub struct SpawnAsteroidEvent(pub AsteroidSize);
 
 fn asteroid_spawn_system(
-    windows: Res<Windows>,
+    viewport: Res<Viewport>,
     assets: Res<AsteroidAssets>,
     mut spawn_events: EventReader<SpawnAsteroidEvent>,
     mut commands: Commands
 ) {
     for &SpawnAsteroidEvent(size) in spawn_events.iter() {
-        spawn_asteroid(&mut commands, &assets, windows.get_primary().unwrap(), size);
+        spawn_asteroid(&mut commands, &assets, &viewport, size);
     }
 }
 
@@ -96,12 +96,12 @@ const LINE_WIDTH: f32 = 2.0;
 fn spawn_asteroid(
     commands: &mut Commands,
     assets: &AsteroidAssets,
-    window: &Window,
+    viewport: &Viewport,
     size: AsteroidSize
 ) {
     let mut rng = rand::thread_rng();
 
-    let position = rng.random_unit_vec2() * Vec2::new(window.width(), window.height()) / 2.0;
+    let position = rng.random_unit_vec2() * Vec2::new(viewport.width, viewport.height) / 2.0;
     let velocity = ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
     let rotation = ASTEROID_MIN_SPIN_RATE + rng.random_f32() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
 
@@ -131,7 +131,7 @@ fn spawn_asteroid(
             rotational_velocity: rotation,
             rotational_acceleration: None,
         })
-        .insert(TorusConstraint)
+        .insert(MovableTorusConstraint)
         .insert(BulletCollidable)
         .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
         // Collision detection

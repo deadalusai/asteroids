@@ -4,7 +4,6 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::hit::HitEvent;
 use crate::movable::*;
-use crate::torus::*;
 use crate::svg::*;
 
 // Bullets
@@ -98,7 +97,7 @@ fn spawn_bullet(
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
-        .insert(TorusConstraint)
+        .insert(MovableTorusConstraint)
         // Rendering
         .insert_bundle(GeometryBuilder::build_as(
             &assets.bullet_shape,

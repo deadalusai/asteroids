@@ -3,7 +3,6 @@ use bevy::utils::HashMap;
 use bevy_prototype_lyon::prelude::*;
 use crate::util::*;
 use crate::movable::*;
-use crate::torus::*;
 use crate::svg::*;
 
 // Explosions
@@ -125,7 +124,7 @@ fn spawn_explosion(
             rotational_velocity: spawn.rotational_velocity,
             rotational_acceleration: None,
         })
-        .insert(TorusConstraint)
+        .insert(MovableTorusConstraint)
         // Rendering
         .insert_bundle(GeometryBuilder::build_as(
             shape,

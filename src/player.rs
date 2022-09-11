@@ -7,7 +7,6 @@ use crate::explosion::*;
 use crate::util::*;
 use crate::bullet::*;
 use crate::movable::*;
-use crate::torus::*;
 use crate::svg::*;
 
 // Player's Rocket
@@ -194,8 +193,8 @@ fn spawn_player_rocket(
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
+        .insert(MovableTorusConstraint)
         .insert(BulletController::new(b_fire_rate, b_start_offset, b_bullet_speed, b_bullet_max_age_secs))
-        .insert(TorusConstraint)
         .insert(AsteroidCollidable)
         // Collision detection
         .insert(sepax)

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use std::f32::consts::TAU;
+use crate::viewport::Viewport;
 
 // Component for entities which are moving (basically everything)
 
@@ -8,7 +8,11 @@ pub struct MovablePlugin;
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
         app.add_system_to_stage(CoreStage::Update, movable_system);
-        app.add_system_to_stage(CoreStage::Update, movable_update_transform_system.after(movable_system));
+        app.add_system_to_stage(CoreStage::Update, movable_torus_constraint_system);
+        app.add_system_to_stage(CoreStage::Update,
+            movable_update_transform_system
+                .after(movable_system)
+                .after(movable_torus_constraint_system));
     }
 }
 
@@ -66,6 +70,7 @@ fn movable_system(
     mut query: Query<&mut Movable>
 ) {
     use AcceleratingTo::*;
+    use std::f32::consts::TAU;
 
     // Update the position of each moving object
     let t_secs = time.delta_seconds_f64() as f32;
@@ -141,4 +146,41 @@ fn movable_update_transform_system(mut query: Query<(&Movable, &mut Transform)>)
 
 pub fn heading_angle_to_transform_rotation(heading_angle: f32) -> Quat {
     Quat::from_rotation_z(-heading_angle)
+}
+
+// Torus world
+
+#[derive(Component)]
+pub struct MovableTorusConstraint;
+
+static TORUS_GUTTER: f32 = 25.0;
+
+fn movable_torus_constraint_system(
+    viewport: Res<Viewport>,
+    mut query: Query<&mut Movable, With<MovableTorusConstraint>>
+) {
+    // NOTE: 0,0 is in the middle of the window.
+    let half_width = viewport.width / 2.;
+    let half_height = viewport.height / 2.;
+
+    for mut movable in query.iter_mut() {
+        let right = half_width + TORUS_GUTTER;
+        let left = -half_width - TORUS_GUTTER;
+        let top = half_height + TORUS_GUTTER;
+        let bottom = -half_height - TORUS_GUTTER;
+        // Has this Movable left the screen?
+        // Teleport them to the other side of the Torus
+        if movable.position.x > right {
+            movable.position.x = left;
+        }
+        if movable.position.x < left {
+            movable.position.x = right;
+        }
+        if movable.position.y > top {
+            movable.position.y = bottom;
+        }
+        if movable.position.y < bottom {
+            movable.position.y = top;
+        }
+    }
 }
