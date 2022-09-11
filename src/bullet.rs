@@ -78,7 +78,7 @@ fn spawn_bullet(
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
-        .insert(TorusConstraint::new(BULLET_SCALE))
+        .insert(TorusConstraint)
         .insert_bundle(MaterialMesh2dBundle {
             mesh: assets.bullet_mesh.clone().into(),
             material: assets.bullet_material.clone(),
@@ -118,16 +118,18 @@ pub struct BulletController {
     timer: Timer,
     is_firing: bool,
     fire_count: i32,
+    bullet_start_offset: f32,
     bullet_speed: f32,
     bullet_max_age_secs: f32,
 }
 
 impl BulletController {
-    pub fn new(fire_rate: f32, bullet_speed: f32, bullet_max_age_secs: f32) -> Self {
+    pub fn new(fire_rate: f32, bullet_start_offset: f32, bullet_speed: f32, bullet_max_age_secs: f32) -> Self {
         Self {
             is_firing: false,
             fire_count: 0,
             timer: Timer::from_seconds(1.0 / fire_rate, true),
+            bullet_start_offset,
             bullet_speed,
             bullet_max_age_secs: bullet_max_age_secs,
         }
@@ -166,7 +168,7 @@ fn bullet_controller_system(
         let fire_state = controller.update(&time);
         if fire_state == FireState::Fire {
             spawn_bullet(&assets, &mut commands, SpawnBullet {
-                position: movable.position,
+                position: movable.position + movable.heading_normal() * controller.bullet_start_offset,
                 velocity: movable.velocity + movable.heading_normal() * controller.bullet_speed,
                 despawn_after: time.time_since_startup() + Duration::from_secs(controller.bullet_max_age_secs as u64),
             });

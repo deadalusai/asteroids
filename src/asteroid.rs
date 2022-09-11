@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::movable::*;
 use crate::torus::*;
+use crate::draw::*;
 
 pub struct AsteroidPlugin;
 
@@ -29,7 +30,7 @@ fn asset_initialisation_system(mut commands: Commands) {
         (10.0, "M 4 -3 L 0 -5 L -3 -5 L -2 -2 L -5 -2 L -5 0 L -2 5 L 1 2 L 2 4 L 5 1 L 1 -1 L 5 -2 L 5 -3 Z")
     ];
     let asteroid_shapes = asteroid_shapes.into_iter()
-        .map(|(dim, svg)| (dim, crate::draw::parse_simple_svg_path(svg).unwrap()))
+        .map(|(dim, svg)| (dim, simple_svg_to_path(svg)))
         .collect();
 
     commands.insert_resource(AsteroidAssets { asteroid_shapes });
@@ -83,7 +84,7 @@ fn asteroid_scale(size: AsteroidSize) -> f32 {
     }
 }
 
-const LINE_WIDTH: f32 = 1.0;
+const LINE_WIDTH: f32 = 2.0;
 
 fn spawn_asteroid(
     commands: &mut Commands,
@@ -108,7 +109,7 @@ fn spawn_asteroid(
         .with_translation(Vec3::new(position.x, position.y, ASTEROID_Z))
         .with_scale(Vec3::splat(scale));
 
-    // collision detection
+    // Collision detection
     let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(position.into(), scale * diameter / 2.0));
     let sepax = bevy_sepax2d::components::Sepax { convex };
     let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
@@ -117,14 +118,14 @@ fn spawn_asteroid(
         .spawn()
         .insert(Asteroid)
         .insert(Movable {
-            position: position,
-            velocity: velocity,
+            position,
+            velocity,
             acceleration: None,
             heading_angle: 0.,
             rotational_velocity: rotation,
             rotational_acceleration: None,
         })
-        .insert(TorusConstraint::new(asteroid_scale(size)))
+        .insert(TorusConstraint)
         .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
         // Collision detection
         .insert(sepax)

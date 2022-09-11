@@ -28,14 +28,26 @@ fn parse_coordinates(a: Option<&str>, b: Option<&str>) -> Result<(f32, f32), Box
     Ok((a, b))
 }
 
-pub fn parse_simple_svg_path(path: &str) -> Result<Path, ()> {
+fn svg_to_bevy((x, y): (f32, f32)) -> bevy::prelude::Vec2 {
+    // NOTE: SVG uses {x right, y down}, bevy uses {x right, y up}
+    // Flip the y coordinates
+    bevy::prelude::Vec2::new(x, -y)
+}
+
+pub fn simple_svg_to_path(path: &str) -> Path {
     let mut p = PathBuilder::new();
     for instruction in parse_svg_instructions(path).unwrap() {
         match instruction {
-            Instruction::MoveTo(coords) => { p.move_to(coords.into()); },
-            Instruction::LineTo(coords) => { p.line_to(coords.into()); },
-            Instruction::ClosePath => { p.close(); },
+            Instruction::MoveTo(coords) => {
+                p.move_to(svg_to_bevy(coords));
+            },
+            Instruction::LineTo(coords) => {
+                p.line_to(svg_to_bevy(coords));
+            },
+            Instruction::ClosePath => {
+                p.close();
+            },
         }
     }
-    Ok(p.build())
+    p.build()
 }

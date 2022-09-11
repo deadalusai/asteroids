@@ -10,28 +10,24 @@ impl Plugin for TorusConstraintPlugin {
 }
 
 #[derive(Component)]
-pub struct TorusConstraint(f32);
+pub struct TorusConstraint;
 
-impl TorusConstraint {
-    pub fn new(gutter_size: f32) -> Self {
-        TorusConstraint(gutter_size)
-    }
-}
+static TORUS_GUTTER: f32 = 25.0;
 
 fn torus_constraint_system(
     windows: Res<Windows>,
-    mut query: Query<(&TorusConstraint, &mut Movable)>
+    mut query: Query<&mut Movable, With<TorusConstraint>>
 ) {
     // NOTE: 0,0 is in the middle of the window.
     let win = windows.get_primary().unwrap();
     let half_width = win.width() / 2.;
     let half_height = win.height() / 2.;
 
-    for (&TorusConstraint(gutter_size), mut movable) in query.iter_mut() {
-        let right = half_width + gutter_size;
-        let left = -half_width - gutter_size;
-        let top = half_height + gutter_size;
-        let bottom = -half_height - gutter_size;
+    for mut movable in query.iter_mut() {
+        let right = half_width + TORUS_GUTTER;
+        let left = -half_width - TORUS_GUTTER;
+        let top = half_height + TORUS_GUTTER;
+        let bottom = -half_height - TORUS_GUTTER;
         // Has this Movable left the screen?
         // Teleport them to the other side of the Torus
         if movable.position.x > right {
