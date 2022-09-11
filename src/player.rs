@@ -1,12 +1,14 @@
 use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-use bevy_prototype_lyon::prelude::tess::geom::euclid::approxeq::ApproxEq;
 use crate::asteroid::AsteroidCollidable;
+use crate::hit::HitEvent;
+use crate::explosion::*;
+use crate::util::*;
 use crate::bullet::*;
 use crate::movable::*;
 use crate::torus::*;
-use crate::draw::*;
+use crate::svg::*;
 
 // Player's Rocket
 
@@ -31,6 +33,7 @@ impl Plugin for PlayerPlugin {
         app.add_system(player_keyboard_event_system);
         app.add_system(player_spawn_system);
         app.add_system(rocket_exhaust_system);
+        app.add_system_to_stage(CoreStage::PostUpdate, player_destruction_system);
         app.add_event::<SpawnPlayerRocketEvent>();
     }
 }
@@ -227,17 +230,7 @@ fn rocket_exhaust_system(
 
     for (exhaust, mut draw_mode) in query.iter_mut() {
         let new_alpha = if exhaust.is_firing { exhaust_opacity_over_t(t_secs) } else { 0. };
-        let stroke = read_stroke(&draw_mode);
-        if !stroke.color.a().approx_eq(&new_alpha) {
-            // Update the opacity of the stroke
-            let color = Color::rgba(
-                stroke.color.r(),
-                stroke.color.g(),
-                stroke.color.b(),
-                new_alpha
-            );
-            *draw_mode = DrawMode::Stroke(StrokeMode { color, ..stroke })
-        }
+        try_update_stroke_alpha(&mut draw_mode, new_alpha);
     }
 }
 
@@ -249,9 +242,45 @@ fn exhaust_opacity_over_t(t_secs: f32) -> f32 {
     min + (max - min) * scale
 }
 
-fn read_stroke(draw_mode: &DrawMode) -> StrokeMode {
-    match draw_mode {
-        DrawMode::Stroke(stroke) => *stroke,
-        _ => panic!("Called read_stroke_mode on non-stroke draw mode"),
+// Destruction system
+
+fn player_destruction_system(
+    mut commands: Commands,
+    mut explosion_events: EventWriter<SpawnExplosionEvent>,
+    mut hit_events: EventReader<HitEvent>,
+    query: Query<&Movable, With<PlayerRocket>>
+) {
+    for &HitEvent(entity) in hit_events.iter() {
+        if let Ok(movable) = query.get(entity) {
+            let mut rng = rand::thread_rng();
+            // Despawn the entity
+            commands.entity(entity).despawn_recursive();
+            // Start the explosion
+            explosion_events.send(make_explosion_event(&mut rng, movable, ExplosionAssetId::RocketDebrisA));
+            explosion_events.send(make_explosion_event(&mut rng, movable, ExplosionAssetId::RocketDebrisB));
+        }
+    }
+}
+
+static PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS: f32 = 3.0;
+static PLAYER_ROCKET_EXPLOSION_MAX_ADD_SPEED: f32 = 100.0;
+static PLAYER_ROCKET_EXPLOSION_MAX_ADD_ROT_SPEED: f32 = 0.5;
+
+fn make_explosion_event(
+    rng: &mut rand::rngs::ThreadRng,
+    movable: &Movable,
+    mesh_id: ExplosionAssetId
+) -> SpawnExplosionEvent {
+    // Add some random spin to the individual parts
+    let add_velocity = rng.random_unit_vec2() * rng.random_f32() * PLAYER_ROCKET_EXPLOSION_MAX_ADD_SPEED;
+    let add_rot_velocity = (rng.random_f32() - 0.5) * 2.0 * PLAYER_ROCKET_EXPLOSION_MAX_ADD_ROT_SPEED;
+    SpawnExplosionEvent {
+        mesh_id,
+        mesh_scale: ROCKET_SCALE,
+        position: movable.position,
+        velocity: movable.velocity + add_velocity,
+        heading_angle: movable.heading_angle,
+        rotational_velocity: movable.rotational_velocity + add_rot_velocity,
+        despawn_after_secs: PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS,
     }
 }

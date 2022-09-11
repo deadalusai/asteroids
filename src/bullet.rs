@@ -2,9 +2,10 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use crate::hit::HitEvent;
 use crate::movable::*;
 use crate::torus::*;
-use crate::draw::*;
+use crate::svg::*;
 
 // Bullets
 
@@ -17,8 +18,8 @@ impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(asset_initialisation_system);
         app.add_system(bullet_controller_system);
-        app.add_system(bullet_despawn_system);
         app.add_system(bullet_collision_system);
+        app.add_system_to_stage(CoreStage::PostUpdate, bullet_despawn_system);
     }
 }
 
@@ -112,8 +113,17 @@ fn spawn_bullet(
 fn bullet_despawn_system(
     time: Res<Time>,
     mut commands: Commands,
+    mut hit_events: EventReader<HitEvent>,
     query: Query<(Entity, &Bullet)>
 ) {
+    // Despawn bullets which have hit something
+    for &HitEvent(entity) in hit_events.iter() {
+        if let Ok(_) = query.get(entity) {
+            commands.entity(entity).despawn();
+        }
+    }
+
+    // Despawn bullets which have expired
     let time_since_startup = time.time_since_startup();
     for (entity, bullet) in query.iter() {
         if time_since_startup >= bullet.despawn_after {
@@ -197,17 +207,17 @@ fn bullet_controller_system(
 // Collision detection
 
 fn  bullet_collision_system(
-    mut commands: Commands,
     bullets: Query<(Entity, &bevy_sepax2d::components::Sepax), With<Bullet>>,
-    collidables: Query<(Entity, &bevy_sepax2d::components::Sepax), With<BulletCollidable>>
+    collidables: Query<(Entity, &bevy_sepax2d::components::Sepax), With<BulletCollidable>>,
+    mut hit_events: EventWriter<HitEvent>
 )
 {
     for (bullet_entity, bullet) in bullets.iter() {
-        for (target_entity, target) in collidables.iter() {
+        for (collidable_entity, target) in collidables.iter() {
             if sepax2d::sat_overlap(bullet.shape(), target.shape()) {
                 // Collision!
-                commands.entity(bullet_entity).despawn_recursive();
-                commands.entity(target_entity).despawn_recursive();
+                hit_events.send(HitEvent(bullet_entity));
+                hit_events.send(HitEvent(collidable_entity));
             }
         }
     }

@@ -1,17 +1,22 @@
-mod draw;
+mod svg;
+mod util;
 mod movable;
+mod hit;
 mod torus;
 mod player;
 mod bullet;
 mod asteroid;
+mod explosion;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use movable::*;
+use hit::*;
 use torus::*;
 use player::*;
-use asteroid::*;
 use bullet::*;
+use asteroid::*;
+use explosion::*;
 
 fn main() {
     App::new()
@@ -34,8 +39,10 @@ fn main() {
         .add_plugin(PlayerPlugin)
         .add_plugin(BulletPlugin)
         .add_plugin(AsteroidPlugin)
+        .add_plugin(ExplosionPlugin)
         .add_plugin(TorusConstraintPlugin)
         .add_plugin(MovablePlugin)
+        .add_plugin(HitEventsPlugin)
         .add_startup_system(startup_system)
         .add_system(global_keyboard_event_system)
         .run();

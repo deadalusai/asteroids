@@ -3,9 +3,12 @@ use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::bullet::BulletCollidable;
+use crate::hit::HitEvent;
+use crate::explosion::*;
 use crate::movable::*;
 use crate::torus::*;
-use crate::draw::*;
+use crate::svg::*;
+use crate::util::*;
 
 pub struct AsteroidPlugin;
 
@@ -14,6 +17,7 @@ impl Plugin for AsteroidPlugin {
         app.add_startup_system(asset_initialisation_system);
         app.add_system(asteroid_spawn_system);
         app.add_system(asteroid_collision_system);
+        app.add_system_to_stage(CoreStage::PostUpdate, asteroid_destruction_system);
         app.add_event::<SpawnAsteroidEvent>();
     }
 }
@@ -56,7 +60,9 @@ pub enum AsteroidSize {
 }
 
 #[derive(Component)]
-pub struct Asteroid;
+pub struct Asteroid {
+    size: AsteroidSize,
+}
 
 /// Marker component which indicates that an entity should be considered for asteroid collisions
 #[derive(Component)]
@@ -77,12 +83,6 @@ fn asteroid_spawn_system(
     }
 }
 
-fn random_unit_vec2(rng: &mut impl rand::Rng) -> Vec2 {
-    let x = rng.gen::<f32>() * 2.0 - 1.0;
-    let y = rng.gen::<f32>() * 2.0 - 1.0;
-    Vec2::new(x, y).normalize()
-}
-
 fn asteroid_scale(size: AsteroidSize) -> f32 {
     match size {
         AsteroidSize::Small => ASTEROID_SCALE_SMALL,
@@ -99,15 +99,14 @@ fn spawn_asteroid(
     window: &Window,
     size: AsteroidSize
 ) {
-    use rand::{Rng, seq::SliceRandom};
     let mut rng = rand::thread_rng();
 
-    let position = random_unit_vec2(&mut rng) * Vec2::new(window.width(), window.height()) / 2.0;
-    let velocity = ASTEROID_MIN_SPEED + random_unit_vec2(&mut rng) * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
-    let rotation = ASTEROID_MIN_SPIN_RATE + rng.gen::<f32>() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
+    let position = rng.random_unit_vec2() * Vec2::new(window.width(), window.height()) / 2.0;
+    let velocity = ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
+    let rotation = ASTEROID_MIN_SPIN_RATE + rng.random_f32() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
 
     // Mesh
-    let (diameter, shape) = assets.asteroid_shapes.choose(&mut rng).unwrap();
+    let (diameter, shape) = rng.random_choice(&assets.asteroid_shapes).unwrap();
     let scale = asteroid_scale(size);
 
     let color = Color::rgba(0.6, 0.6, 0.6, 1.);
@@ -123,7 +122,7 @@ fn spawn_asteroid(
 
     commands
         .spawn()
-        .insert(Asteroid)
+        .insert(Asteroid { size })
         .insert(Movable {
             position,
             velocity,
@@ -143,17 +142,62 @@ fn spawn_asteroid(
 // Collision detection
 
 fn  asteroid_collision_system(
-    mut commands: Commands,
     asteroids: Query<(Entity, &bevy_sepax2d::components::Sepax), With<Asteroid>>,
-    collidables: Query<(Entity, &bevy_sepax2d::components::Sepax), With<AsteroidCollidable>>
+    collidables: Query<(Entity, &bevy_sepax2d::components::Sepax), With<AsteroidCollidable>>,
+    mut hit_events: EventWriter<HitEvent>
 )
 {
     for (_, bullet) in asteroids.iter() {
-        for (target_entity, target) in collidables.iter() {
+        for (collidable_entity, target) in collidables.iter() {
             if sepax2d::sat_overlap(bullet.shape(), target.shape()) {
                 // Collision!
-                commands.entity(target_entity).despawn_recursive();
+                hit_events.send(HitEvent(collidable_entity));
             }
         }
+    }
+}
+
+// Destruction system
+
+fn asteroid_destruction_system(
+    mut commands: Commands,
+    mut explosion_events: EventWriter<SpawnExplosionEvent>,
+    mut hit_events: EventReader<HitEvent>,
+    query: Query<(&Asteroid, &Movable)>
+) {
+    for &HitEvent(entity) in hit_events.iter() {
+        if let Ok((asteroid, movable)) = query.get(entity) {
+            let mut rng = rand::thread_rng();
+            // Despawn the entity
+            commands.entity(entity).despawn();
+            // Start the explosion
+            explosion_events.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisA));
+            explosion_events.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisB));
+            explosion_events.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisC));
+        }
+    }
+}
+
+static ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS: f32 = 0.8;
+static ASTEROID_EXPLOSION_MAX_ADD_SPEED: f32 = 100.0;
+static ASTEROID_EXPLOSION_MAX_ADD_ROT_SPEED: f32 = 0.5;
+
+fn make_explosion_event(
+    rng: &mut rand::rngs::ThreadRng,
+    asteroid: &Asteroid,
+    movable: &Movable,
+    mesh_id: ExplosionAssetId
+) -> SpawnExplosionEvent {
+    // Add some random spin to the individual parts
+    let add_velocity = rng.random_unit_vec2() * rng.random_f32() * ASTEROID_EXPLOSION_MAX_ADD_SPEED;
+    let add_rot_velocity = (rng.random_f32() - 0.5) * 2.0 * ASTEROID_EXPLOSION_MAX_ADD_ROT_SPEED;
+    SpawnExplosionEvent {
+        mesh_id,
+        mesh_scale: asteroid_scale(asteroid.size),
+        position: movable.position,
+        velocity: movable.velocity + add_velocity,
+        heading_angle: movable.heading_angle,
+        rotational_velocity: movable.rotational_velocity + add_rot_velocity,
+        despawn_after_secs: ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS,
     }
 }

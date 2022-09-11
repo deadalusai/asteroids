@@ -10,7 +10,7 @@ enum Instruction {
 
 fn parse_svg_instructions(path: &str) -> Result<Vec<Instruction>, BoxError> {
     let mut instructions = Vec::new();
-    let mut tokens = path.split(" ").into_iter();
+    let mut tokens = path.split(" ").map(|s| s.trim()).filter(|s| s.len() > 0).into_iter();
     while let Some(token) = tokens.next() {
         instructions.push(match token {
             "M" => Instruction::MoveTo(parse_coordinates(tokens.next(), tokens.next())?),
