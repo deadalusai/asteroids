@@ -1,3 +1,4 @@
+mod draw;
 mod movable;
 mod torus;
 mod player;
