@@ -29,6 +29,7 @@ fn main() {
         .add_plugin(ShapePlugin)
         // bevy_sepax2d (collision detection)
         .add_system_to_stage(CoreStage::PostUpdate, bevy_sepax2d::plugin::update_movable_system)
+        .add_system_to_stage(CoreStage::PostUpdate, bevy_sepax2d::plugin::clear_correction_system)
         // Game
         .add_plugin(PlayerPlugin)
         .add_plugin(BulletPlugin)

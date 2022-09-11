@@ -1,9 +1,10 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy::sprite::MaterialMesh2dBundle;
+use bevy_prototype_lyon::prelude::*;
 use crate::movable::*;
 use crate::torus::*;
+use crate::draw::*;
 
 // Bullets
 
@@ -24,8 +25,8 @@ impl Plugin for BulletPlugin {
 // Setup
 
 struct BulletAssets {
-    bullet_mesh: Handle<Mesh>,
-    bullet_material: Handle<ColorMaterial>,
+    bullet_dimension: f32, // h of the bullet shape
+    bullet_shape: Path,
 }
 
 fn asset_initialisation_system(
@@ -33,9 +34,12 @@ fn asset_initialisation_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>
 ) {
+    let bullet_dimension = 2.0;
+    let bullet_path = "M 0 1 L 0 -1";
+
     commands.insert_resource(BulletAssets {
-        bullet_mesh: meshes.add(Mesh::from(shape::Circle::new(1.0))),
-        bullet_material: materials.add(ColorMaterial::from(Color::rgba(1., 1., 1., 1.))),
+        bullet_dimension,
+        bullet_shape: simple_svg_to_path(bullet_path),
     });
 }
 
@@ -51,17 +55,29 @@ pub struct Bullet {
 pub struct SpawnBullet {
     pub position: Vec2,
     pub velocity: Vec2,
+    pub heading_angle: f32,
     pub despawn_after: Duration,
 }
+
+const LINE_WIDTH: f32 = 2.0;
 
 fn spawn_bullet(
     assets: &Res<BulletAssets>,
     commands: &mut Commands,
     spawn: SpawnBullet
 ) {
+    let scale = BULLET_SCALE;
+    let bullet_color = Color::rgba(0.8, 0.8, 0.8, 1.0);
+    let bullet_draw_mode = DrawMode::Stroke(StrokeMode::new(bullet_color, LINE_WIDTH / scale));
+
+    // Transform
+    let transform = Transform::default()
+        .with_translation(Vec3::new(spawn.position.x, spawn.position.y, BULLET_Z))
+        .with_rotation(heading_angle_to_transform_rotation(spawn.heading_angle))
+        .with_scale(Vec3::splat(scale));
 
     // collision detection
-    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(spawn.position.into(), BULLET_SCALE / 2.));
+    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(spawn.position.into(), scale / 2.));
     let sepax = bevy_sepax2d::components::Sepax { convex };
     let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
 
@@ -74,19 +90,17 @@ fn spawn_bullet(
             position: spawn.position,
             velocity: spawn.velocity,
             acceleration: None,
-            heading_angle: 0.,
+            heading_angle: spawn.heading_angle,
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
         .insert(TorusConstraint)
-        .insert_bundle(MaterialMesh2dBundle {
-            mesh: assets.bullet_mesh.clone().into(),
-            material: assets.bullet_material.clone(),
-            transform: Transform::default()
-                .with_translation(Vec3::new(spawn.position.x, spawn.position.y, BULLET_Z))
-                .with_scale(Vec3::splat(BULLET_SCALE)),
-            ..Default::default()
-        })
+        // Rendering
+        .insert_bundle(GeometryBuilder::build_as(
+            &assets.bullet_shape,
+            bullet_draw_mode,
+            transform
+        ))
         // Collision detection
         .insert(sepax)
         .insert(sepax_movable);
@@ -170,6 +184,7 @@ fn bullet_controller_system(
             spawn_bullet(&assets, &mut commands, SpawnBullet {
                 position: movable.position + movable.heading_normal() * controller.bullet_start_offset,
                 velocity: movable.velocity + movable.heading_normal() * controller.bullet_speed,
+                heading_angle: movable.heading_angle,
                 despawn_after: time.time_since_startup() + Duration::from_secs(controller.bullet_max_age_secs as u64),
             });
         }

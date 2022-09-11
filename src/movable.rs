@@ -135,6 +135,10 @@ fn movable_update_transform_system(mut query: Query<(&Movable, &mut Transform)>)
     for (movable, mut transform) in query.iter_mut() {
         transform.translation.x = movable.position.x;
         transform.translation.y = movable.position.y;
-        transform.rotation = Quat::from_rotation_z(-movable.heading_angle);
+        transform.rotation = heading_angle_to_transform_rotation(movable.heading_angle);
     }
+}
+
+pub fn heading_angle_to_transform_rotation(heading_angle: f32) -> Quat {
+    Quat::from_rotation_z(-heading_angle)
 }
