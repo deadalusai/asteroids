@@ -1,6 +1,7 @@
 mod movable;
 mod torus;
 mod player;
+mod bullet;
 mod asteroid;
 
 use bevy::prelude::*;
@@ -8,6 +9,7 @@ use movable::*;
 use torus::*;
 use player::*;
 use asteroid::*;
+use bullet::*;
 
 fn main() {
     App::new()
@@ -19,12 +21,13 @@ fn main() {
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
-        .add_plugin(MovablePlugin)
-        .add_plugin(TorusConstraintPlugin)
+        // .add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin)
+        // .add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default())
         .add_plugin(PlayerPlugin)
+        .add_plugin(BulletPlugin)
         .add_plugin(AsteroidPlugin)
-        .add_event::<SpawnPlayerRocketEvent>()
-        .add_event::<SpawnAsteroidEvent>()
+        .add_plugin(TorusConstraintPlugin)
+        .add_plugin(MovablePlugin)
         .add_startup_system(startup_system)
         .run();
 }

@@ -11,6 +11,7 @@ impl Plugin for AsteroidPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(asset_initialisation_system);
         app.add_system(asteroid_spawn_system);
+        app.add_event::<SpawnAsteroidEvent>();
     }
 }
 
@@ -34,7 +35,7 @@ fn asset_initialisation_system(
 
 // Asteroids
 
-static ASTEROID_Y: f32 = 20.0;
+static ASTEROID_Z: f32 = 20.0;
 static ASTEROID_MAX_SPEED: f32 = 350.0;
 static ASTEROID_MIN_SPEED: f32 = 80.0;
 static ASTEROID_MAX_SPIN_RATE: f32 = TAU * 0.7;
@@ -106,7 +107,7 @@ fn spawn_asteroid(
             mesh: assets.asteroid_mesh.clone().into(),
             material: assets.asteroid_material.clone(),
             transform: Transform::default()
-                .with_translation(Vec3::new(0., 0., ASTEROID_Y))
+                .with_translation(Vec3::new(position.x, position.y, ASTEROID_Z))
                 .with_scale(Vec3::splat(asteroid_scale(size))),
             ..Default::default()
         });

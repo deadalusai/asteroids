@@ -1,6 +1,7 @@
 use std::{f32::consts::TAU, ops::Neg};
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use crate::bullet::*;
 use crate::movable::*;
 use crate::torus::*;
 
@@ -13,6 +14,9 @@ static ROCKET_RATE_OF_ACCELERATION_DRAG: f32 = 180.0;
 static ROCKET_MAX_SPEED: f32 = 900.0;
 static ROCKET_MAX_DRAG_SPEED: f32 = 50.0;
 static ROCKET_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
+static ROCKET_BULLET_SPEED: f32 = 900.0;
+static ROCKET_BULLET_LIFE_SECS: f32 = 2.0;
+static ROCKET_FIRE_RATE: f32 = 5.0; // per second
 static ROCKET_SCALE: f32 = 50.0;
 static ROCKET_Y: f32 = 10.0;
 
@@ -21,8 +25,9 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(asset_initialisation_system);
-        app.add_system(rocket_keyboard_event_system);
-        app.add_system(asteroid_spawn_system);
+        app.add_system(player_keyboard_event_system);
+        app.add_system(player_spawn_system);
+        app.add_event::<SpawnPlayerRocketEvent>();
     }
 }
 
@@ -66,23 +71,27 @@ fn create_rocket_mesh() -> Mesh {
 #[derive(Component)]
 pub struct PlayerRocket;
 
-fn rocket_keyboard_event_system(
+type RocketQueryForKeyboardEvents<'a> = (&'a mut Movable, &'a mut BulletController);
+
+fn player_keyboard_event_system(
     kb: Res<Input<KeyCode>>,
-    mut query: Query<&mut Movable, With<PlayerRocket>>,
-    mut spawn_events: EventWriter<SpawnPlayerRocketEvent>,
+    mut query: Query<RocketQueryForKeyboardEvents, With<PlayerRocket>>,
+    mut rocket_spawn_events: EventWriter<SpawnPlayerRocketEvent>,
 ) {
+    // DEBUG: Spawn another player rocket
     if kb.just_released(KeyCode::T) {
-        spawn_events.send(SpawnPlayerRocketEvent);
+        rocket_spawn_events.send(SpawnPlayerRocketEvent);
     }
 
     let turning_left = kb.pressed(KeyCode::Left);
     let turning_right = kb.pressed(KeyCode::Right);
     let accelerating = kb.pressed(KeyCode::Up);
+    let firing = kb.pressed(KeyCode::Space);
 
-    for mut movable in query.iter_mut() {
+    for (mut movable, mut bullet_controller) in query.iter_mut() {
 
-        // DEBUG: Reset position?
-        if kb.pressed(KeyCode::Space) {
+        // DEBUG: Reset rocket position
+        if kb.pressed(KeyCode::R) {
             movable.position = Vec2::new(0., 0.);
             movable.velocity = Vec2::splat(0.);
             movable.acceleration = None;
@@ -116,6 +125,9 @@ fn rocket_keyboard_event_system(
             else {
                 None
             };
+
+        // Fire bullets at the configured fire rate
+        bullet_controller.set_firing(firing);
     }
 }
 
@@ -129,7 +141,7 @@ fn rocket_keyboard_event_system(
 
 pub struct SpawnPlayerRocketEvent;
 
-fn asteroid_spawn_system(
+fn player_spawn_system(
     mut spawn_events: EventReader<SpawnPlayerRocketEvent>,
     assets: Res<PlayerAssets>,
     mut commands: Commands
@@ -143,23 +155,25 @@ fn spawn_player_rocket(
     assets: &Res<PlayerAssets>,
     commands: &mut Commands
 ) {
+    let pos = Vec2::new(0., 0.); // Spawn in the middle of the screen
     commands
         .spawn()
         .insert(PlayerRocket)
         .insert(Movable {
-            position: Vec2::new(0., 0.),
+            position: pos,
             velocity: Vec2::splat(0.),
             acceleration: None,
             heading_angle: 0.,
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
+        .insert(BulletController::new(ROCKET_FIRE_RATE, ROCKET_BULLET_SPEED, ROCKET_BULLET_LIFE_SECS))
         .insert(TorusConstraint::new(ROCKET_SCALE))
         .insert_bundle(MaterialMesh2dBundle {
             mesh: assets.rocket_mesh.clone().into(),
             material: assets.rocket_material.clone(),
             transform: Transform::default()
-                .with_translation(Vec3::new(0., 0., ROCKET_Y))
+                .with_translation(Vec3::new(pos.x, pos.y, ROCKET_Y))
                 .with_scale(Vec3::splat(ROCKET_SCALE)),
             ..Default::default()
         });
