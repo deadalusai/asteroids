@@ -131,7 +131,7 @@ fn movable_system(
 }
 
 fn movable_update_transform_system(mut query: Query<(&Movable, &mut Transform)>) {
-    // Update the translation of each moving object
+    // Update the translation of each moving object which has one
     for (movable, mut transform) in query.iter_mut() {
         transform.translation.x = movable.position.x;
         transform.translation.y = movable.position.y;

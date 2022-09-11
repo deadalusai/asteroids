@@ -75,14 +75,8 @@ type RocketQueryForKeyboardEvents<'a> = (&'a mut Movable, &'a mut BulletControll
 
 fn player_keyboard_event_system(
     kb: Res<Input<KeyCode>>,
-    mut query: Query<RocketQueryForKeyboardEvents, With<PlayerRocket>>,
-    mut rocket_spawn_events: EventWriter<SpawnPlayerRocketEvent>,
+    mut query: Query<RocketQueryForKeyboardEvents, With<PlayerRocket>>
 ) {
-    // DEBUG: Spawn another player rocket
-    if kb.just_released(KeyCode::T) {
-        rocket_spawn_events.send(SpawnPlayerRocketEvent);
-    }
-
     let turning_left = kb.pressed(KeyCode::Left);
     let turning_right = kb.pressed(KeyCode::Right);
     let accelerating = kb.pressed(KeyCode::Up);

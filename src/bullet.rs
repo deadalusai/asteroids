@@ -17,6 +17,7 @@ impl Plugin for BulletPlugin {
         app.add_startup_system(asset_initialisation_system);
         app.add_system(bullet_controller_system);
         app.add_system(bullet_despawn_system);
+        app.add_system(bullet_collision_system);
     }
 }
 
@@ -58,6 +59,12 @@ fn spawn_bullet(
     commands: &mut Commands,
     spawn: SpawnBullet
 ) {
+
+    // collision detection
+    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(spawn.position.into(), BULLET_SCALE / 2.));
+    let sepax = bevy_sepax2d::components::Sepax { convex };
+    let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
+
     commands
         .spawn()
         .insert(Bullet {
@@ -79,7 +86,10 @@ fn spawn_bullet(
                 .with_translation(Vec3::new(spawn.position.x, spawn.position.y, BULLET_Z))
                 .with_scale(Vec3::splat(BULLET_SCALE)),
             ..Default::default()
-        });
+        })
+        // Collision detection
+        .insert(sepax)
+        .insert(sepax_movable);
 }
 
 fn bullet_despawn_system(
@@ -94,7 +104,6 @@ fn bullet_despawn_system(
         }
     }
 }
-
 
 // Fire control
 
@@ -136,13 +145,9 @@ impl BulletController {
         if !self.is_firing {
             return FireState::None;
         }
-        self.fire_count += 1;
-        if self.fire_count == 1 {
-            // Fire the first shot immediately
-            FireState::Fire
-        }
-        else if self.timer.tick(time.delta()).just_finished() {
-            // Fire any subsequent shots on the timer
+        let should_fire = self.fire_count == 0 || self.timer.tick(time.delta()).just_finished();
+        if should_fire {
+            self.fire_count += 1;
             FireState::Fire
         }
         else {
@@ -165,6 +170,25 @@ fn bullet_controller_system(
                 velocity: movable.velocity + movable.heading_normal() * controller.bullet_speed,
                 despawn_after: time.time_since_startup() + Duration::from_secs(controller.bullet_max_age_secs as u64),
             });
+        }
+    }
+}
+
+// Collision detection
+
+fn  bullet_collision_system(
+    mut commands: Commands,
+    bullets: Query<(Entity, &bevy_sepax2d::components::Sepax), With<Bullet>>,
+    targets: Query<(Entity, &bevy_sepax2d::components::Sepax), Without<Bullet>>
+)
+{
+    for (bullet_entity, bullet) in bullets.iter() {
+        for (target_entity, target) in targets.iter() {
+            if sepax2d::sat_overlap(bullet.shape(), target.shape()) {
+                // Collision!
+                commands.entity(bullet_entity).despawn();
+                commands.entity(target_entity).despawn();
+            }
         }
     }
 }

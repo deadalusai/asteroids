@@ -1,6 +1,7 @@
 use std::f32::consts::TAU;
 
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::prelude::*;
+use bevy_prototype_lyon::prelude::*;
 use rand::random;
 use crate::movable::*;
 use crate::torus::*;
@@ -18,19 +19,27 @@ impl Plugin for AsteroidPlugin {
 // Setup
 
 struct AsteroidAssets {
-    asteroid_mesh: Handle<Mesh>,
-    asteroid_material: Handle<ColorMaterial>,
+    asteroid_shape_large: shapes::RegularPolygon,
+    asteroid_shape_medium: shapes::RegularPolygon,
+    asteroid_shape_small: shapes::RegularPolygon,
 }
 
 fn asset_initialisation_system(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>
 ) {
     commands.insert_resource(AsteroidAssets {
-        asteroid_mesh: meshes.add(Mesh::from(shape::RegularPolygon::new(1.0, 5))),
-        asteroid_material: materials.add(ColorMaterial::from(Color::rgba(0.6, 0.6, 0.6, 1.))),
+        asteroid_shape_large: asteroid_shape(AsteroidSize::Large),
+        asteroid_shape_medium: asteroid_shape(AsteroidSize::Medium),
+        asteroid_shape_small: asteroid_shape(AsteroidSize::Small),
     });
+}
+
+fn asteroid_shape(size: AsteroidSize) -> shapes::RegularPolygon {
+    shapes::RegularPolygon {
+        sides: 5,
+        feature: shapes::RegularPolygonFeature::Radius(asteroid_diameter(size) / 2.0),
+        ..Default::default()
+    }
 }
 
 // Asteroids
@@ -40,9 +49,9 @@ static ASTEROID_MAX_SPEED: f32 = 350.0;
 static ASTEROID_MIN_SPEED: f32 = 80.0;
 static ASTEROID_MAX_SPIN_RATE: f32 = TAU * 0.7;
 static ASTEROID_MIN_SPIN_RATE: f32 = TAU * 0.05;
-static ASTEROID_SCALE_SMALL: f32 = 25.0;
-static ASTEROID_SCALE_MEDIUM: f32 = 70.0;
-static ASTEROID_SCALE_LARGE: f32 = 120.0;
+static ASTEROID_DIAMETER_SMALL: f32 = 25.0;
+static ASTEROID_DIAMETER_MEDIUM: f32 = 70.0;
+static ASTEROID_DIAMETER_LARGE: f32 = 120.0;
 
 #[derive(Clone, Copy)]
 pub enum AsteroidSize {
@@ -67,11 +76,11 @@ fn asteroid_spawn_system(
     }
 }
 
-fn asteroid_scale(size: AsteroidSize) -> f32 {
+fn asteroid_diameter(size: AsteroidSize) -> f32 {
     match size {
-        AsteroidSize::Small => ASTEROID_SCALE_SMALL,
-        AsteroidSize::Medium => ASTEROID_SCALE_MEDIUM,
-        AsteroidSize::Large => ASTEROID_SCALE_LARGE,
+        AsteroidSize::Small => ASTEROID_DIAMETER_SMALL,
+        AsteroidSize::Medium => ASTEROID_DIAMETER_MEDIUM,
+        AsteroidSize::Large => ASTEROID_DIAMETER_LARGE,
     }
 }
 
@@ -91,6 +100,20 @@ fn spawn_asteroid(
     let velocity = ASTEROID_MIN_SPEED + random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
     let rotation = ASTEROID_MIN_SPIN_RATE + random::<f32>() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
 
+    // Mesh
+    let shape = match size {
+        AsteroidSize::Small => &assets.asteroid_shape_small,
+        AsteroidSize::Medium => &assets.asteroid_shape_medium,
+        AsteroidSize::Large => &assets.asteroid_shape_large,
+    };
+    let draw_mode = DrawMode::Stroke(StrokeMode::color(Color::rgba(0.6, 0.6, 0.6, 1.)));
+    let transform = Transform::default().with_translation(Vec3::new(position.x, position.y, ASTEROID_Z));
+
+    // collision detection
+    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(position.into(), asteroid_diameter(size) / 2.0));
+    let sepax = bevy_sepax2d::components::Sepax { convex };
+    let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
+
     commands
         .spawn()
         .insert(Asteroid)
@@ -102,13 +125,9 @@ fn spawn_asteroid(
             rotational_velocity: rotation,
             rotational_acceleration: None,
         })
-        .insert(TorusConstraint::new(asteroid_scale(size)))
-        .insert_bundle(MaterialMesh2dBundle {
-            mesh: assets.asteroid_mesh.clone().into(),
-            material: assets.asteroid_material.clone(),
-            transform: Transform::default()
-                .with_translation(Vec3::new(position.x, position.y, ASTEROID_Z))
-                .with_scale(Vec3::splat(asteroid_scale(size))),
-            ..Default::default()
-        });
+        .insert(TorusConstraint::new(asteroid_diameter(size)))
+        .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
+        // Collision detection
+        .insert(sepax)
+        .insert(sepax_movable);
 }
