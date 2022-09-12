@@ -3,7 +3,7 @@ use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::bullet::BulletCollidable;
-use crate::hit::HitEvent;
+use crate::hit::*;
 use crate::viewport::*;
 use crate::movable::*;
 use crate::explosion::*;
@@ -17,7 +17,7 @@ impl Plugin for AsteroidPlugin {
         app.add_startup_system(asset_initialisation_system);
         app.add_system(asteroid_spawn_system);
         app.add_system(asteroid_collision_system);
-        app.add_system_to_stage(CoreStage::PostUpdate, asteroid_destruction_system);
+        app.add_system_to_stage(CoreStage::PostUpdate, asteroid_hit_system);
         app.add_event::<SpawnAsteroidEvent>();
     }
 }
@@ -54,7 +54,7 @@ static ASTEROID_SCALE_SMALL: f32 = 5.0;
 static ASTEROID_SCALE_MEDIUM: f32 = 10.0;
 static ASTEROID_SCALE_LARGE: f32 = 15.0;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AsteroidSize {
     Small, Medium, Large
 }
@@ -69,8 +69,13 @@ pub struct Asteroid {
 pub struct AsteroidCollidable;
 
 // Spawning
+#[derive(Clone, Copy)]
+pub struct SpawnAsteroidPositionVelocity {
+    position: Vec2,
+    velocity: Vec2,
+}
 
-pub struct SpawnAsteroidEvent(pub AsteroidSize);
+pub struct SpawnAsteroidEvent(pub AsteroidSize, pub Option<SpawnAsteroidPositionVelocity>);
 
 fn asteroid_spawn_system(
     viewport: Res<Viewport>,
@@ -78,8 +83,8 @@ fn asteroid_spawn_system(
     mut spawn_events: EventReader<SpawnAsteroidEvent>,
     mut commands: Commands
 ) {
-    for &SpawnAsteroidEvent(size) in spawn_events.iter() {
-        spawn_asteroid(&mut commands, &assets, &viewport, size);
+    for &SpawnAsteroidEvent(size, pos_vel) in spawn_events.iter() {
+        spawn_asteroid(&mut commands, &assets, &viewport, size, pos_vel);
     }
 }
 
@@ -97,12 +102,19 @@ fn spawn_asteroid(
     commands: &mut Commands,
     assets: &AsteroidAssets,
     viewport: &Viewport,
-    size: AsteroidSize
+    size: AsteroidSize,
+    pos_vel: Option<SpawnAsteroidPositionVelocity>
 ) {
     let mut rng = rand::thread_rng();
-
-    let position = rng.random_unit_vec2() * Vec2::new(viewport.width, viewport.height) / 2.0;
-    let velocity = ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
+    let (position, velocity) = match pos_vel {
+        Some(loc) => (loc.position, loc.velocity),
+        None => {
+            // Generate a random asteroid
+            let position = rng.random_unit_vec2() * Vec2::new(viewport.width, viewport.height) / 2.0;
+            let velocity = ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
+            (position, velocity)
+        }
+    };
     let rotation = ASTEROID_MIN_SPIN_RATE + rng.random_f32() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
 
     // Mesh
@@ -157,25 +169,62 @@ fn  asteroid_collision_system(
     }
 }
 
-// Destruction system
+// Hit handling system
 
-fn asteroid_destruction_system(
+fn asteroid_hit_system(
     mut commands: Commands,
-    mut explosion_events: EventWriter<SpawnExplosionEvent>,
+    mut spawn_asteroid: EventWriter<SpawnAsteroidEvent>,
+    mut spawn_explosion: EventWriter<SpawnExplosionEvent>,
     mut hit_events: EventReader<HitEvent>,
     query: Query<(&Asteroid, &Movable)>
 ) {
-    for &HitEvent(entity) in hit_events.iter() {
+    let mut rng = rand::thread_rng();
+    for &HitEvent(entity) in distinct_hit_events(&mut hit_events) {
         if let Ok((asteroid, movable)) = query.get(entity) {
-            let mut rng = rand::thread_rng();
             // Despawn the entity
             commands.entity(entity).despawn();
             // Start the explosion
-            explosion_events.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisA));
-            explosion_events.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisB));
-            explosion_events.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisC));
+            spawn_explosion.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisA));
+            spawn_explosion.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisB));
+            spawn_explosion.send(make_explosion_event(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisC));
+            // Spawn asteroid chunks
+            if asteroid.size == AsteroidSize::Large || asteroid.size == AsteroidSize::Medium {
+                spawn_asteroid.send_batch(make_chunk_asteroids(&mut rng, asteroid, movable).into_iter());
+            }
         }
     }
+}
+
+static CHILD_ASTEROID_SPAWN_DISTANCE: f32 = 4.0;
+static CHILD_ASTEROID_MIN_ADD_SPEED: f32 = 50.0;
+static CHILD_ASTEROID_MAX_ADD_SPEED: f32 = 150.0;
+
+fn make_chunk_asteroids(
+    rng: &mut rand::rngs::ThreadRng,
+    parent_asteroid: &Asteroid,
+    parent_asteroid_movable: &Movable
+) -> [SpawnAsteroidEvent; 2] {
+
+    let size = match parent_asteroid.size {
+        AsteroidSize::Large => AsteroidSize::Medium,
+        AsteroidSize::Medium => AsteroidSize::Small,
+        AsteroidSize::Small => unreachable!(),
+    };
+
+    // Generate some random position and velocity for these two asteroids
+    let chunk_direction = rng.random_unit_vec2();
+    let chunk_velocity = CHILD_ASTEROID_MIN_ADD_SPEED + rng.random_f32() * (CHILD_ASTEROID_MAX_ADD_SPEED - CHILD_ASTEROID_MIN_ADD_SPEED);
+
+    let p1 = parent_asteroid_movable.position + chunk_direction * CHILD_ASTEROID_SPAWN_DISTANCE * asteroid_scale(parent_asteroid.size);
+    let p2 = parent_asteroid_movable.position + -chunk_direction * CHILD_ASTEROID_SPAWN_DISTANCE * asteroid_scale(parent_asteroid.size);
+
+    let v1 = chunk_direction * chunk_velocity;
+    let v2 = -chunk_direction * chunk_velocity;
+    
+    [
+        SpawnAsteroidEvent(size, Some(SpawnAsteroidPositionVelocity { position: p1, velocity: v1 })),
+        SpawnAsteroidEvent(size, Some(SpawnAsteroidPositionVelocity { position: p2, velocity: v2 })),
+    ]
 }
 
 static ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS: f32 = 0.8;

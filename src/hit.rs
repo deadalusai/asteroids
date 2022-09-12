@@ -15,3 +15,9 @@ impl Plugin for HitEventsPlugin {
 }
 
 pub struct HitEvent(pub Entity);
+
+// Helpers
+
+pub fn distinct_hit_events<'a>(events: &'a mut bevy::prelude::EventReader<crate::hit::HitEvent>) -> impl Iterator<Item=&'a crate::hit::HitEvent> {
+    crate::util::distinct_by(events.iter(), |crate::hit::HitEvent(e)| e)
+}

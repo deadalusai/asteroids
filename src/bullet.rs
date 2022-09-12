@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-use crate::hit::HitEvent;
+use crate::hit::*;
 use crate::movable::*;
 use crate::svg::*;
 
@@ -116,7 +116,7 @@ fn bullet_despawn_system(
     query: Query<(Entity, &Bullet)>
 ) {
     // Despawn bullets which have hit something
-    for &HitEvent(entity) in hit_events.iter() {
+    for &HitEvent(entity) in distinct_hit_events(&mut hit_events) {
         if let Ok(_) = query.get(entity) {
             commands.entity(entity).despawn();
         }

@@ -2,9 +2,9 @@ use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::asteroid::AsteroidCollidable;
-use crate::hit::HitEvent;
-use crate::explosion::*;
+use crate::hit::*;
 use crate::util::*;
+use crate::explosion::*;
 use crate::bullet::*;
 use crate::movable::*;
 use crate::svg::*;
@@ -32,7 +32,7 @@ impl Plugin for PlayerPlugin {
         app.add_system(player_keyboard_event_system);
         app.add_system(player_spawn_system);
         app.add_system(rocket_exhaust_system);
-        app.add_system_to_stage(CoreStage::PostUpdate, player_destruction_system);
+        app.add_system_to_stage(CoreStage::PostUpdate, player_hit_system);
         app.add_event::<SpawnPlayerRocketEvent>();
     }
 }
@@ -243,13 +243,13 @@ fn exhaust_opacity_over_t(t_secs: f32) -> f32 {
 
 // Destruction system
 
-fn player_destruction_system(
+fn player_hit_system(
     mut commands: Commands,
     mut explosion_events: EventWriter<SpawnExplosionEvent>,
     mut hit_events: EventReader<HitEvent>,
     query: Query<&Movable, With<PlayerRocket>>
 ) {
-    for &HitEvent(entity) in hit_events.iter() {
+    for &HitEvent(entity) in distinct_hit_events(&mut hit_events) {
         if let Ok(movable) = query.get(entity) {
             let mut rng = rand::thread_rng();
             // Despawn the entity

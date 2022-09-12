@@ -1,4 +1,4 @@
-use bevy::prelude::{Color, Vec2};
+use bevy::{prelude::{Color, Vec2}, utils::HashSet};
 use bevy_prototype_lyon::prelude::DrawMode;
 
 pub fn try_update_drawmode_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
@@ -21,6 +21,8 @@ pub fn try_update_drawmode_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
         },
     }
 }
+
+// Rng
 
 pub trait RngUtil {
     fn random_unit_vec2(&mut self) -> Vec2;
@@ -45,4 +47,14 @@ impl RngUtil for rand::rngs::ThreadRng {
         use rand::seq::SliceRandom;
         slice.choose(self)
     }
+}
+
+// Iterable
+
+pub fn distinct_by<T, F, V>(iterator: impl Iterator<Item=T>, selector: F) -> impl Iterator<Item=T>
+    where V: Eq + std::hash::Hash,
+          F: Fn(&T) -> V
+{
+    let mut seen = HashSet::new();
+    iterator.filter(move |v| seen.insert(selector(v)))
 }

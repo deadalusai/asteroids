@@ -72,7 +72,7 @@ fn startup_system(
     ];
     for &(size, count) in &asteroids {
         for _ in 0..count {
-            asteroid_spawn_events.send(SpawnAsteroidEvent(size));
+            asteroid_spawn_events.send(SpawnAsteroidEvent(size, None));
         }
     }
 }
@@ -88,12 +88,12 @@ fn global_keyboard_event_system(
     }
     // DEBUG: Spawn another asteroid
     if kb.just_released(KeyCode::Numpad1) {
-        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Small));
+        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Small, None));
     }
     if kb.just_released(KeyCode::Numpad2) {
-        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Medium));
+        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Medium, None));
     }
     if kb.just_released(KeyCode::Numpad3) {
-        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Large));
+        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Large, None));
     }
 }
