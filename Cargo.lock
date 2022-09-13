@@ -144,7 +144,6 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_prototype_lyon",
- "bevy_sepax2d",
  "rand",
  "sepax2d",
 ]
@@ -670,17 +669,6 @@ dependencies = [
  "serde",
  "thiserror",
  "uuid",
-]
-
-[[package]]
-name = "bevy_sepax2d"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c9462db8d53ced651fa9e0aada8979b4ed23ecf5dbec156af5fe3a4637de811"
-dependencies = [
- "bevy",
- "bevy_prototype_lyon",
- "sepax2d",
 ]
 
 [[package]]

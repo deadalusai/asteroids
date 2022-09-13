@@ -6,6 +6,7 @@ use crate::bullet::BulletCollidable;
 use crate::hit::*;
 use crate::viewport::*;
 use crate::movable::*;
+use crate::collidable::*;
 use crate::explosion::*;
 use crate::svg::*;
 use crate::util::*;
@@ -128,9 +129,7 @@ fn spawn_asteroid(
         .with_scale(Vec3::splat(scale));
 
     // Collision detection
-    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(position.into(), scale * diameter / 2.0));
-    let sepax = bevy_sepax2d::components::Sepax { convex };
-    let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
+    let collider = make_circle_collider(position.into(), scale * diameter / 2.);
 
     commands
         .spawn()
@@ -144,24 +143,23 @@ fn spawn_asteroid(
             rotational_acceleration: None,
         })
         .insert(MovableTorusConstraint)
-        .insert(BulletCollidable)
         .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
         // Collision detection
-        .insert(sepax)
-        .insert(sepax_movable);
+        .insert(Collidable { collider })
+        .insert(BulletCollidable);
 }
 
 // Collision detection
 
 fn  asteroid_collision_system(
-    asteroids: Query<(Entity, &bevy_sepax2d::components::Sepax), With<Asteroid>>,
-    collidables: Query<(Entity, &bevy_sepax2d::components::Sepax), With<AsteroidCollidable>>,
+    asteroids: Query<(Entity, &Collidable), With<Asteroid>>,
+    collidables: Query<(Entity, &Collidable), With<AsteroidCollidable>>,
     mut hit_events: EventWriter<HitEvent>
 )
 {
     for (_, bullet) in asteroids.iter() {
         for (collidable_entity, target) in collidables.iter() {
-            if sepax2d::sat_overlap(bullet.shape(), target.shape()) {
+            if bullet.test_collision_with(&target) {
                 // Collision!
                 hit_events.send(HitEvent(collidable_entity));
             }

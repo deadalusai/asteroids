@@ -8,7 +8,6 @@ rand = "0.8.5"
 # Bevy game engine
 bevy = "0.8.1"
 # Simple 2d collision detection for bevy
-bevy_sepax2d = { version = "0.3.0", features = ["debug"] }
 sepax2d = "0.3"
 # Draw 2d shapes and paths with bevy
 bevy_prototype_lyon = "0.6"

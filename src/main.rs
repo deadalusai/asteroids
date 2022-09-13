@@ -1,6 +1,7 @@
 mod svg;
 mod util;
 mod movable;
+mod collidable;
 mod hit;
 mod player;
 mod bullet;
@@ -12,6 +13,7 @@ mod hud;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use viewport::*;
+use collidable::*;
 use movable::*;
 use hud::*;
 use hit::*;
@@ -36,17 +38,15 @@ fn main() {
         // bevy_prototype_lyon
         .insert_resource(Msaa { samples: 4 })
         .add_plugin(ShapePlugin)
-        // bevy_sepax2d (collision detection)
-        .add_system_to_stage(CoreStage::PostUpdate, bevy_sepax2d::plugin::update_movable_system)
-        .add_system_to_stage(CoreStage::PostUpdate, bevy_sepax2d::plugin::clear_correction_system)
         // Game
+        .add_plugin(CollidablePlugin)
+        .add_plugin(MovablePlugin)
+        .add_plugin(HitEventsPlugin)
         .add_plugin(ViewportPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(BulletPlugin)
         .add_plugin(AsteroidPlugin)
         .add_plugin(ExplosionPlugin)
-        .add_plugin(MovablePlugin)
-        .add_plugin(HitEventsPlugin)
         .add_plugin(HeadsUpDisplayPlugin)
         .add_startup_system(startup_system)
         .add_system(global_keyboard_event_system)

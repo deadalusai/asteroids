@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::hit::*;
 use crate::movable::*;
+use crate::collidable::*;
 use crate::svg::*;
 
 // Bullets
@@ -80,9 +81,7 @@ fn spawn_bullet(
         .with_scale(Vec3::splat(scale));
 
     // collision detection
-    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(spawn.position.into(), scale * assets.bullet_dimension / 2.));
-    let sepax = bevy_sepax2d::components::Sepax { convex };
-    let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
+    let collider = make_circle_collider(spawn.position.into(), scale * assets.bullet_dimension / 2.);
 
     commands
         .spawn()
@@ -105,8 +104,7 @@ fn spawn_bullet(
             transform
         ))
         // Collision detection
-        .insert(sepax)
-        .insert(sepax_movable);
+        .insert(Collidable { collider });
 }
 
 fn bullet_despawn_system(
@@ -206,17 +204,17 @@ fn bullet_controller_system(
 // Collision detection
 
 fn  bullet_collision_system(
-    bullets: Query<(Entity, &bevy_sepax2d::components::Sepax), With<Bullet>>,
-    collidables: Query<(Entity, &bevy_sepax2d::components::Sepax), With<BulletCollidable>>,
+    bullets: Query<(Entity, &Collidable), With<Bullet>>,
+    collidables: Query<(Entity, &Collidable), With<BulletCollidable>>,
     mut hit_events: EventWriter<HitEvent>
 )
 {
-    for (bullet_entity, bullet) in bullets.iter() {
-        for (collidable_entity, target) in collidables.iter() {
-            if sepax2d::sat_overlap(bullet.shape(), target.shape()) {
+    for (bullet, b_collidable) in bullets.iter() {
+        for (other, o_collidable) in collidables.iter() {
+            if b_collidable.test_collision_with(&o_collidable) {
                 // Collision!
-                hit_events.send(HitEvent(bullet_entity));
-                hit_events.send(HitEvent(collidable_entity));
+                hit_events.send(HitEvent(bullet));
+                hit_events.send(HitEvent(other));
             }
         }
     }

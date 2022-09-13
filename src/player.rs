@@ -6,6 +6,7 @@ use crate::hit::*;
 use crate::util::*;
 use crate::explosion::*;
 use crate::bullet::*;
+use crate::collidable::*;
 use crate::movable::*;
 use crate::svg::*;
 
@@ -178,9 +179,7 @@ fn spawn_player_rocket(
     // Collision detection
     // NOTE: Currently using a spherical collision box, shrunk down to fit within the hull
     // TODO(benf): Make a triangular Polygon collision shape
-    let convex = bevy_sepax2d::Convex::Circle(sepax2d::circle::Circle::new(position.into(), scale * rocket_shape_height / 4.0));
-    let sepax = bevy_sepax2d::components::Sepax { convex };
-    let sepax_movable = bevy_sepax2d::components::Movable { axes: Vec::new() };
+    let collider = make_circle_collider(position.into(), scale * rocket_shape_height / 4.0);
 
     commands
         .spawn()
@@ -195,10 +194,9 @@ fn spawn_player_rocket(
         })
         .insert(MovableTorusConstraint)
         .insert(BulletController::new(b_fire_rate, b_start_offset, b_bullet_speed, b_bullet_max_age_secs))
-        .insert(AsteroidCollidable)
         // Collision detection
-        .insert(sepax)
-        .insert(sepax_movable)
+        .insert(AsteroidCollidable)
+        .insert(Collidable { collider })
         // Rendering
         .insert_bundle(GeometryBuilder::build_as(
             &assets.rocket_shape,
