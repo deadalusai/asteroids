@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use rand::thread_rng;
 use crate::assets::{GameAssets, Viewport};
 use crate::player::{PlayerRocketDestroyedEvent, RocketSpawn, spawn_player_rocket};
-use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, spawn_asteroid};
+use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, spawn_asteroid, AsteroidKind};
 use crate::util::*;
 
 pub struct GamePlugin;
@@ -51,24 +51,33 @@ pub struct Game {
     player_state: PlayerState,
     player_spawn_timer: Timer,
     scheduled_asteroid_spawns: Vec<ScheduledAsteroidSpawn>,
+    init: GameInit,
 }
 
 impl Game {
     pub fn new(init: GameInit) -> Self {
+        let asteroid_count = init.asteroid_count;
         let mut game = Self {
             player_lives_remaining: init.player_lives,
             player_points: 0,
             player_state: PlayerState::Start,
             player_spawn_timer: Timer::from_seconds(GAME_PLAYER_RESPAWN_TIME_SECS, false),
             scheduled_asteroid_spawns: Vec::new(),
+            init,
         };
-        for _ in 0..init.asteroid_count {
+        for _ in 0..asteroid_count {
             game.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::FromAnywhere);
         }
         game
     }
 
-    pub fn on_rocket_destroyed(&mut self) {
+    pub fn reset(&mut self) {
+        self.player_lives_remaining = self.init.player_lives;
+        self.player_points = 0;
+        self.player_state = PlayerState::Start;
+    }
+
+    fn on_rocket_destroyed(&mut self) {
         if self.player_state != PlayerState::Ready {
             return;
         }
@@ -82,21 +91,20 @@ impl Game {
         }
     }
 
-    pub fn on_rocket_spawned(&mut self) {
+    fn on_rocket_spawned(&mut self) {
         self.player_state = PlayerState::Ready;
     }
 
-    pub fn on_asteroid_destroyed(&mut self, event: AsteroidDestroyedEvent) {
+    fn on_asteroid_destroyed(&mut self, event: AsteroidDestroyedEvent) {
         self.player_points += get_points_for_asteroid(event.size);
 
-        // Schedule new chunks to spawn?
-        match event.size {
-            AsteroidSize::Small => {
-                self.schedule_asteroids_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS, AsteroidSpawnInstruction::FromOffScreen);
-            },
-            AsteroidSize::Medium | AsteroidSize::Large => {
-                self.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::FromDestroyedAsteroid(event));
-            },
+        // Schedule new chunks to respawn?
+        if event.kind == AsteroidKind::Original {
+            self.schedule_asteroids_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS, AsteroidSpawnInstruction::FromOffScreen);
+        }
+        // Break apart large chunks?
+        if event.size == AsteroidSize::Medium || event.size == AsteroidSize::Large {
+            self.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::FromDestroyedAsteroid(event));
         }
     }
 
@@ -107,14 +115,14 @@ impl Game {
         });
     }
 
-    pub fn tick(&mut self, delta: std::time::Duration) {
+    fn tick(&mut self, delta: std::time::Duration) {
         self.player_spawn_timer.tick(delta);
         for s in self.scheduled_asteroid_spawns.iter_mut() {
             s.spawn_timer.tick(delta);
         }
     }
 
-    pub fn should_spawn_player(&self) -> bool {
+    fn should_spawn_player(&self) -> bool {
         let should_spawn =
             self.player_state == PlayerState::Start ||
             (self.player_state == PlayerState::Respawn && self.player_spawn_timer.finished());
@@ -171,7 +179,8 @@ fn game_update_system(
                 let position = random_onscreen_position(&mut rng, &viewport);
                 let velocity = random_asteroid_velocity(&mut rng);
                 let size = random_size(&mut rng);
-                let spawn = AsteroidSpawn { size, position, velocity };
+                let kind = AsteroidKind::Original;
+                let spawn = AsteroidSpawn { size, kind, position, velocity };
                 spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, spawn);
 
             },
@@ -180,7 +189,8 @@ fn game_update_system(
                 let position = random_offscreen_position(&mut rng, &viewport);
                 let velocity = random_asteroid_velocity(&mut rng);
                 let size = random_size(&mut rng);
-                let spawn = AsteroidSpawn { size, position, velocity };
+                let kind = AsteroidKind::Original;
+                let spawn = AsteroidSpawn { size, kind, position, velocity };
                 spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, spawn);
             },
             AsteroidSpawnInstruction::FromDestroyedAsteroid(ev) => {
@@ -191,8 +201,9 @@ fn game_update_system(
                     AsteroidSize::Medium => AsteroidSize::Small,
                     AsteroidSize::Large => AsteroidSize::Medium,
                 };
-                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, AsteroidSpawn { size, position: a.0, velocity: a.1 });
-                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, AsteroidSpawn { size, position: b.0, velocity: b.1 });
+                let kind = AsteroidKind::Chunk;
+                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, AsteroidSpawn { size, kind, position: a.0, velocity: a.1 });
+                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, AsteroidSpawn { size, kind, position: b.0, velocity: b.1 });
             },
         };
     }

@@ -69,6 +69,7 @@ fn main() {
             startup_system
                 .after(StartupSystemLabel::LoadGameAssets)
         )
+        .add_system(global_keyboard_event_system)
         .run();
 }
 
@@ -77,23 +78,12 @@ fn startup_system(mut commands: Commands) {
     commands.spawn_bundle(Camera2dBundle::default());
 }
 
-// fn global_keyboard_event_system(
-//     kb: Res<Input<KeyCode>>,
-//     mut player_spawn_events: EventWriter<PlayerRocketSpawnEvent>,
-//     mut asteroid_spawn_events: EventWriter<SpawnAsteroidEvent>,
-// ) {
-//     // DEBUG: Spawn another player rocket
-//     if kb.just_released(KeyCode::Numpad0) {
-//         player_spawn_events.send(PlayerRocketSpawnEvent);
-//     }
-//     // DEBUG: Spawn another asteroid
-//     if kb.just_released(KeyCode::Numpad1) {
-//         asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Small, None));
-//     }
-//     if kb.just_released(KeyCode::Numpad2) {
-//         asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Medium, None));
-//     }
-//     if kb.just_released(KeyCode::Numpad3) {
-//         asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Large, None));
-//     }
-// }
+fn global_keyboard_event_system(
+    kb: Res<Input<KeyCode>>,
+    mut game: ResMut<Game>
+) {
+    // DEBUG: Reset the game state
+    if kb.just_released(KeyCode::R) {
+        game.reset();
+    }
+}

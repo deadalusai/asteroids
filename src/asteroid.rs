@@ -34,6 +34,7 @@ impl Plugin for AsteroidPlugin {
 #[derive(Clone)]
 pub struct AsteroidDestroyedEvent {
     pub size: AsteroidSize,
+    pub kind: AsteroidKind,
     pub position: Vec2,
     pub velocity: Vec2,
 }
@@ -73,9 +74,16 @@ pub enum AsteroidSize {
     Small, Medium, Large
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AsteroidKind {
+    Original,
+    Chunk
+}
+
 #[derive(Component)]
 pub struct Asteroid {
     size: AsteroidSize,
+    kind: AsteroidKind,
 }
 
 /// Marker component which indicates that an entity should be considered for asteroid collisions
@@ -97,6 +105,7 @@ fn asteroid_scale(size: AsteroidSize) -> f32 {
 #[derive(Clone, Copy)]
 pub struct AsteroidSpawn {
     pub size: AsteroidSize,
+    pub kind: AsteroidKind,
     pub position: Vec2,
     pub velocity: Vec2,
 }
@@ -126,7 +135,10 @@ pub fn spawn_asteroid(
 
     commands
         .spawn()
-        .insert(Asteroid { size: spawn.size })
+        .insert(Asteroid {
+            size: spawn.size,
+            kind: spawn.kind,
+        })
         .insert(Movable {
             position,
             velocity,
@@ -188,6 +200,7 @@ fn asteroid_hit_system(
             // Send events
             asteroid_destroyed.send(AsteroidDestroyedEvent {
                 size: asteroid.size,
+                kind: asteroid.kind,
                 position: movable.position,
                 velocity: movable.velocity
             });
