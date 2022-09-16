@@ -35,6 +35,7 @@ enum PlayerState {
 }
 
 enum AsteroidSpawnInstruction {
+    FromAnywhere,
     FromOffScreen,
     FromDestroyedAsteroid(AsteroidDestroyedEvent)
 }
@@ -54,7 +55,7 @@ pub struct Game {
 
 impl Game {
     pub fn new(init: GameInit) -> Self {
-        let mut s = Self {
+        let mut game = Self {
             player_lives_remaining: init.player_lives,
             player_points: 0,
             player_state: PlayerState::Start,
@@ -62,9 +63,9 @@ impl Game {
             scheduled_asteroid_spawns: Vec::new(),
         };
         for _ in 0..init.asteroid_count {
-            s.schedule_asteroid_to_spawn(0.0);
+            game.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::FromAnywhere);
         }
-        s
+        game
     }
 
     pub fn on_rocket_destroyed(&mut self) {
@@ -91,25 +92,18 @@ impl Game {
         // Schedule new chunks to spawn?
         match event.size {
             AsteroidSize::Small => {
-                self.schedule_asteroid_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS);
+                self.schedule_asteroids_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS, AsteroidSpawnInstruction::FromOffScreen);
             },
             AsteroidSize::Medium | AsteroidSize::Large => {
-                self.schedule_asteroid_chunks_to_spawn(event);
+                self.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::FromDestroyedAsteroid(event));
             },
         }
     }
 
-    fn schedule_asteroid_to_spawn(&mut self, time_secs: f32) {
+    fn schedule_asteroids_to_spawn(&mut self, time_secs: f32, instruction: AsteroidSpawnInstruction) {
         self.scheduled_asteroid_spawns.push(ScheduledAsteroidSpawn {
             spawn_timer: Timer::from_seconds(time_secs, false),
-            instruction: AsteroidSpawnInstruction::FromOffScreen
-        });
-    }
-
-    fn schedule_asteroid_chunks_to_spawn(&mut self, event: AsteroidDestroyedEvent) {
-        self.scheduled_asteroid_spawns.push(ScheduledAsteroidSpawn {
-            spawn_timer: Timer::from_seconds(0.0, false),
-            instruction: AsteroidSpawnInstruction::FromDestroyedAsteroid(event)
+            instruction
         });
     }
 
@@ -172,9 +166,19 @@ fn game_update_system(
 
     for sched in game.scheduled_asteroid_spawns.drain_filter(|s| s.spawn_timer.finished()) {
         match sched.instruction {
+            AsteroidSpawnInstruction::FromAnywhere => {
+                // Spawn on-screen asteroids
+                let position = random_onscreen_position(&mut rng, &viewport);
+                let velocity = random_asteroid_velocity(&mut rng);
+                let size = random_size(&mut rng);
+                let spawn = AsteroidSpawn { size, position, velocity };
+                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, spawn);
+
+            },
             AsteroidSpawnInstruction::FromOffScreen => {
                 // Spawn off-screen asteroids
-                let (position, velocity) = random_offscreen_asteroid_state(&mut rng, &viewport);
+                let position = random_offscreen_position(&mut rng, &viewport);
+                let velocity = random_asteroid_velocity(&mut rng);
                 let size = random_size(&mut rng);
                 let spawn = AsteroidSpawn { size, position, velocity };
                 spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, spawn);
@@ -217,16 +221,20 @@ pub fn random_chunk_asteroid_state(rng: &mut rand::rngs::ThreadRng, position: Ve
 static ASTEROID_MAX_SPEED: f32 = 350.0;
 static ASTEROID_MIN_SPEED: f32 = 80.0;
 
-fn random_offscreen_asteroid_state(rng: &mut rand::rngs::ThreadRng, viewport: &Viewport) -> (Vec2, Vec2) {
+fn random_asteroid_velocity(rng: &mut rand::rngs::ThreadRng) -> Vec2 {
+    ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED)
+}
+
+fn random_offscreen_position(rng: &mut rand::rngs::ThreadRng, viewport: &Viewport) -> Vec2 {
     // Pick a random position off the top of the screen
+    // TODO(benf): this is pretty shitty - pick a position of any side of the screen
     let x = rng.random_f32() * viewport.width - (viewport.width / 2.);
     let y = viewport.height / 2.;
-    let position = Vec2::new(x, y);
+    Vec2::new(x, y)
+}
 
-    // And a random velocity.
-    // The velocity + toroid behavior will ensure that the asteroid enters from a random edge of the screen
-    let velocity = ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
-    (position, velocity)
+fn random_onscreen_position(rng: &mut rand::rngs::ThreadRng, viewport: &Viewport) -> Vec2 {
+    rng.random_unit_vec2() * Vec2::new(viewport.width, viewport.height) / 2.0
 }
 
 fn random_size(rng: &mut rand::rngs::ThreadRng) -> AsteroidSize {
