@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::SystemLabel;
@@ -67,7 +65,7 @@ pub struct BulletSpawn {
     pub position: Vec2,
     pub velocity: Vec2,
     pub heading_angle: f32,
-    pub despawn_after: Duration,
+    pub despawn_after_secs: f32,
 }
 
 const LINE_WIDTH: f32 = 2.0;
@@ -93,7 +91,7 @@ pub fn spawn_bullet(
     commands
         .spawn()
         .insert(Bullet {
-            despawn_timer: Timer::new(spawn.despawn_after, false),
+            despawn_timer: Timer::from_seconds(spawn.despawn_after_secs, false),
         })
         .insert(Movable {
             position: spawn.position,
@@ -139,52 +137,78 @@ fn bullet_despawn_system(
 // Fire control
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum FireState {
-    Fire,
-    None
+pub enum UpdateResult {
+    None,
+    FireBullet,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BulletControllerState {
+    None,
+    Firing,
+    Cooldown,
 }
 
 #[derive(Component)]
 pub struct BulletController {
     timer: Timer,
-    is_firing: bool,
+    state: BulletControllerState,
     fire_count: i32,
     bullet_start_offset: f32,
     bullet_speed: f32,
-    bullet_max_age_secs: f32,
+    bullet_despawn_after_secs: f32,
 }
 
 impl BulletController {
-    pub fn new(fire_rate: f32, bullet_start_offset: f32, bullet_speed: f32, bullet_max_age_secs: f32) -> Self {
+    pub fn new(fire_rate: f32, bullet_start_offset: f32, bullet_speed: f32, bullet_despawn_after_secs: f32) -> Self {
         Self {
-            is_firing: false,
+            state: BulletControllerState::None,
             fire_count: 0,
             timer: Timer::from_seconds(1.0 / fire_rate, true),
             bullet_start_offset,
             bullet_speed,
-            bullet_max_age_secs: bullet_max_age_secs,
+            bullet_despawn_after_secs,
         }
     }
 
-    pub fn set_firing(&mut self, firing: bool) {
-        if self.is_firing != firing {
-            self.is_firing = firing;
+    pub fn try_set_firing_state(&mut self, firing: bool) {
+        if firing && self.state == BulletControllerState::None {
+            // Start firing
+            self.state = BulletControllerState::Firing;
             self.fire_count = 0;
             self.timer.reset();
         }
+        else if !firing && self.state == BulletControllerState::Firing {
+            // Start cooling down
+            self.state = BulletControllerState::Cooldown;
+        }
     }
 
-    fn update(&mut self, time: &Time) -> FireState {
-        if !self.is_firing {
-            return FireState::None;
-        }
-        let should_fire = self.fire_count == 0 || self.timer.tick(time.delta()).just_finished();
-        if should_fire {
-            self.fire_count += 1;
-            FireState::Fire
-        }
-        else {
-            FireState::None
+    fn update(&mut self, time: &Time) -> UpdateResult {
+        self.timer.tick(time.delta());
+        match self.state {
+            BulletControllerState::None => UpdateResult::None,
+            BulletControllerState::Firing => {
+                // Fire immediately for the first bullet, and therafter
+                // on the cadence set by the timer
+                let should_fire = self.fire_count == 0 || self.timer.just_finished();
+                if should_fire {
+                    self.fire_count += 1;
+                    UpdateResult::FireBullet
+                }
+                else {
+                    UpdateResult::None
+                }
+            },
+            BulletControllerState::Cooldown => {
+                // Cooldown completes after one "firing period" as completed
+                // This prevents button mashing from firing faster than the configured fire rate
+                let cooldown_complete = self.timer.just_finished();
+                if cooldown_complete {
+                    self.state = BulletControllerState::None;
+                }
+                UpdateResult::None
+            },
         }
     }
 }
@@ -196,13 +220,12 @@ fn bullet_controller_system(
     mut query: Query<(&Movable, &mut BulletController)>
 ) {
     for (movable, mut controller) in query.iter_mut() {
-        let fire_state = controller.update(&time);
-        if fire_state == FireState::Fire {
+        if controller.update(&time) == UpdateResult::FireBullet {
             spawn_bullet(&mut commands, &assets.bullet_assets, BulletSpawn {
                 position: movable.position + movable.heading_normal() * controller.bullet_start_offset,
                 velocity: movable.velocity + movable.heading_normal() * controller.bullet_speed,
                 heading_angle: movable.heading_angle,
-                despawn_after: time.time_since_startup() + Duration::from_secs(controller.bullet_max_age_secs as u64),
+                despawn_after_secs: controller.bullet_despawn_after_secs,
             });
         }
     }

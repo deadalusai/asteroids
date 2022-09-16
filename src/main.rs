@@ -22,6 +22,7 @@ use player::*;
 use bullet::*;
 use asteroid::*;
 use explosion::*;
+use game::*;
 use util::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemLabel)]
@@ -76,6 +77,12 @@ fn startup_system(
 ) {
     // Camera
     commands.spawn_bundle(Camera2dBundle::default());
+    
+    // Game controller
+    commands.insert_resource(GameController::new(GameInit {
+        target_asteroids: 10,
+        player_lives: 3,
+    }));
 
     // Player
     spawn_player_rocket(&mut commands, &assets.rocket_assets, &RocketSpawn::default());

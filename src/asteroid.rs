@@ -1,6 +1,4 @@
 use std::f32::consts::TAU;
-use std::time::Duration;
-
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use rand::{rngs::ThreadRng, thread_rng};
@@ -23,7 +21,10 @@ impl Plugin for AsteroidPlugin {
                 .label(SystemLabel::Collision)
                 .after(SystemLabel::Movement)
         );
-        app.add_system_to_stage(CoreStage::PostUpdate, asteroid_hit_system);
+        app.add_system(
+            asteroid_hit_system
+                .after(SystemLabel::Collision)
+        );
         app.add_event::<AsteroidDestroyedEvent>();
     }
 }
@@ -222,7 +223,7 @@ fn make_explosion_spawn(
         velocity: movable.velocity + add_velocity,
         heading_angle: movable.heading_angle,
         rotational_velocity: movable.rotational_velocity + add_rot_velocity,
-        despawn_after: Duration::from_secs_f32(ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS),
+        despawn_after_secs: ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS,
     }
 }
 

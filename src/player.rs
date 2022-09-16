@@ -1,5 +1,4 @@
 use std::f32::consts::TAU;
-use std::time::Duration;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::SystemLabel;
@@ -129,7 +128,7 @@ fn player_keyboard_event_system(
             };
 
         // Start up the guns?
-        bullet_controller.set_firing(firing);
+        bullet_controller.try_set_firing_state(firing);
 
         // Update child components
         for &child in children.iter() {
@@ -284,6 +283,6 @@ fn make_explosion_spawn(
         velocity: movable.velocity + add_velocity,
         heading_angle: movable.heading_angle,
         rotational_velocity: movable.rotational_velocity + add_rot_velocity,
-        despawn_after: Duration::from_secs_f32(PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS),
+        despawn_after_secs: PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS,
     }
 }

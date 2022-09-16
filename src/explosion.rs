@@ -73,7 +73,7 @@ pub struct SpawnExplosion {
     pub velocity: Vec2,
     pub heading_angle: f32,
     pub rotational_velocity: f32,
-    pub despawn_after: Duration,
+    pub despawn_after_secs: f32,
 }
 
 const LINE_WIDTH: f32 = 2.0;
@@ -99,7 +99,7 @@ pub fn spawn_explosions(
         commands
             .spawn()
             .insert(Explosion {
-                despawn_timer: Timer::new(spawn.despawn_after, false),
+                despawn_timer: Timer::from_seconds(spawn.despawn_after_secs, false),
             })
             .insert(Movable {
                 position: spawn.position,
