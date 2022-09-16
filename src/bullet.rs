@@ -221,7 +221,7 @@ fn bullet_controller_system(
 ) {
     for (movable, mut controller) in query.iter_mut() {
         if controller.update(&time) == UpdateResult::FireBullet {
-            spawn_bullet(&mut commands, &assets.bullet_assets, BulletSpawn {
+            spawn_bullet(&mut commands, &assets.bullet, BulletSpawn {
                 position: movable.position + movable.heading_normal() * controller.bullet_start_offset,
                 velocity: movable.velocity + movable.heading_normal() * controller.bullet_speed,
                 heading_angle: movable.heading_angle,

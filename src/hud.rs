@@ -1,5 +1,6 @@
-use bevy::diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
+
+use crate::game::Game;
 
 // Plugin
 
@@ -7,7 +8,6 @@ pub struct HeadsUpDisplayPlugin;
 
 impl Plugin for HeadsUpDisplayPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(FrameTimeDiagnosticsPlugin::default());
         app.add_startup_system(setup_system);
         app.add_system(text_update_system);
         app.add_system(text_color_system);
@@ -17,7 +17,7 @@ impl Plugin for HeadsUpDisplayPlugin {
 // HUD
 
 #[derive(Component)]
-struct FpsText;
+struct StatusText;
 
 #[derive(Component)]
 struct ColorText;
@@ -52,10 +52,23 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(ColorText)
         .insert_bundle(color_text_bundle);
 
-    let fps_text_bundle =
+    let status_text_bundle =
         TextBundle::from_sections([
             TextSection::new(
-                "FPS: ",
+                "POINTS: ",
+                TextStyle {
+                    font: font_dotgothic16.clone(),
+                    font_size: 60.0,
+                    color: Color::WHITE,
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font: font_dotgothic16.clone(),
+                font_size: 60.0,
+                color: Color::GOLD,
+            }),
+            TextSection::new(
+                " LIVES: ",
                 TextStyle {
                     font: font_dotgothic16.clone(),
                     font_size: 60.0,
@@ -80,8 +93,8 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     
     commands
         .spawn()
-        .insert(FpsText)
-        .insert_bundle(fps_text_bundle);
+        .insert(StatusText)
+        .insert_bundle(status_text_bundle);
 }
 
 fn text_color_system(time: Res<Time>, mut query: Query<&mut Text, With<ColorText>>) {
@@ -98,13 +111,12 @@ fn text_color_system(time: Res<Time>, mut query: Query<&mut Text, With<ColorText
     }
 }
 
-fn text_update_system(diagnostics: Res<Diagnostics>, mut query: Query<&mut Text, With<FpsText>>) {
+fn text_update_system(
+    game: Res<Game>,
+    mut query: Query<&mut Text, With<StatusText>>
+) {
     for mut text in &mut query {
-        if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
-            if let Some(average) = fps.average() {
-                // Update the value of the second section
-                text.sections[1].value = format!("{average:.2}");
-            }
-        }
+        text.sections[1].value = format!("{}", game.player_points);
+        text.sections[3].value = format!("{}", game.player_lives_remaining);
     }
 }

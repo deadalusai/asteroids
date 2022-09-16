@@ -152,7 +152,7 @@ const LINE_WIDTH: f32 = 2.0;
 pub fn spawn_player_rocket(
     commands: &mut Commands,
     assets: &RocketAssets,
-    spawn: &RocketSpawn
+    spawn: RocketSpawn
 ) {
      // Spawn stationary, in the middle of the screen
     let position = spawn.position;
@@ -247,6 +247,7 @@ fn exhaust_opacity_over_t(t_secs: f32) -> f32 {
 fn player_hit_system(
     mut commands: Commands,
     mut hit_events: EventReader<HitEvent>,
+    mut rocket_destroyed: EventWriter<PlayerRocketDestroyedEvent>,
     assets: Res<GameAssets>,
     query: Query<&Movable, With<PlayerRocket>>
 ) {
@@ -256,10 +257,12 @@ fn player_hit_system(
             // Despawn the entity
             commands.entity(entity).despawn_recursive();
             // Start the explosion
-            spawn_explosions(&mut commands, &assets.explosion_assets, &[
+            spawn_explosions(&mut commands, &assets.explosion, &[
                 make_explosion_spawn(&mut rng, movable, ExplosionAssetId::RocketDebrisA),
                 make_explosion_spawn(&mut rng, movable, ExplosionAssetId::RocketDebrisB),
             ]);
+            // Send events
+            rocket_destroyed.send(PlayerRocketDestroyedEvent);
         }
     }
 }

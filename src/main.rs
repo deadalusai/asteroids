@@ -1,3 +1,5 @@
+#![feature(drain_filter)]
+
 mod svg;
 mod util;
 mod movable;
@@ -23,7 +25,6 @@ use bullet::*;
 use asteroid::*;
 use explosion::*;
 use game::*;
-use util::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemLabel)]
 pub enum StartupSystemLabel {
@@ -63,6 +64,7 @@ fn main() {
         .add_plugin(AsteroidPlugin)
         .add_plugin(ExplosionPlugin)
         .add_plugin(HeadsUpDisplayPlugin)
+        .add_plugin(GamePlugin)
         .add_startup_system(
             startup_system
                 .after(StartupSystemLabel::LoadGameAssets)
@@ -70,47 +72,9 @@ fn main() {
         .run();
 }
 
-fn startup_system(
-    mut commands: Commands,
-    viewport: Res<Viewport>,
-    assets: Res<GameAssets>
-) {
+fn startup_system(mut commands: Commands) {
     // Camera
     commands.spawn_bundle(Camera2dBundle::default());
-    
-    // Game controller
-    commands.insert_resource(GameController::new(GameInit {
-        target_asteroids: 10,
-        player_lives: 3,
-    }));
-
-    // Player
-    spawn_player_rocket(&mut commands, &assets.rocket_assets, &RocketSpawn::default());
-
-    // Asteroids
-    let mut rng = rand::thread_rng();
-    let asteroids = [
-        (AsteroidSize::Large, 2),
-        (AsteroidSize::Medium, 3),
-        (AsteroidSize::Small, 5),
-    ];
-    for &(size, count) in &asteroids {
-        for _ in 0..count {
-            let (position, velocity) = random_asteroid_position_and_speed(&mut rng, &viewport);
-            let spawn = AsteroidSpawn { size, position, velocity };
-            spawn_asteroids(&mut commands, &assets.asteroid_assets, &[spawn]);
-        }
-    }
-}
-
-static ASTEROID_MAX_SPEED: f32 = 350.0;
-static ASTEROID_MIN_SPEED: f32 = 80.0;
-
-fn random_asteroid_position_and_speed(rng: &mut rand::rngs::ThreadRng, viewport: &Viewport) -> (Vec2, Vec2) {
-    // Generate a random asteroid
-    let position = rng.random_unit_vec2() * Vec2::new(viewport.width, viewport.height) / 2.0;
-    let velocity = ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
-    (position, velocity)
 }
 
 // fn global_keyboard_event_system(

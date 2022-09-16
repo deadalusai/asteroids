@@ -31,6 +31,7 @@ impl Plugin for AsteroidPlugin {
 
 // Events
 
+#[derive(Clone)]
 pub struct AsteroidDestroyedEvent {
     pub size: AsteroidSize,
     pub position: Vec2,
@@ -100,22 +101,11 @@ pub struct AsteroidSpawn {
     pub velocity: Vec2,
 }
 
-pub fn spawn_asteroids(
-    commands: &mut Commands,
-    assets: &AsteroidAssets,
-    spawns: &[AsteroidSpawn]
-) {
-    let mut rng = rand::thread_rng();
-    for spawn in spawns {
-        spawn_single_asteroid(commands, assets, &mut rng, spawn);
-    }
-}
-
-pub fn spawn_single_asteroid(
+pub fn spawn_asteroid(
     commands: &mut Commands,
     assets: &AsteroidAssets,
     rng: &mut ThreadRng,
-    spawn: &AsteroidSpawn
+    spawn: AsteroidSpawn
 ) {
     let position = spawn.position;
     let velocity = spawn.velocity;
@@ -160,11 +150,12 @@ fn  asteroid_collision_system(
     mut hit_events: EventWriter<HitEvent>
 )
 {
-    for (_, bullet) in asteroids.iter() {
-        for (collidable_entity, target) in collidables.iter() {
+    for (asteroid, bullet) in asteroids.iter() {
+        for (other, target) in collidables.iter() {
             if bullet.test_collision_with(&target) {
                 // Collision!
-                hit_events.send(HitEvent(collidable_entity));
+                hit_events.send(HitEvent(asteroid));
+                hit_events.send(HitEvent(other));
             }
         }
     }
@@ -175,6 +166,7 @@ fn  asteroid_collision_system(
 fn asteroid_hit_system(
     mut commands: Commands,
     mut hit_events: EventReader<HitEvent>,
+    mut asteroid_destroyed: EventWriter<AsteroidDestroyedEvent>,
     assets: Res<GameAssets>,
     query: Query<(&Asteroid, &Movable)>
 ) {
@@ -186,19 +178,19 @@ fn asteroid_hit_system(
             // Start the explosion
             spawn_explosions(
                 &mut commands,
-                &assets.explosion_assets,
+                &assets.explosion,
                 &[
                     make_explosion_spawn(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisA),
                     make_explosion_spawn(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisB),
                     make_explosion_spawn(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisC),
                 ]
             );
-            // Spawn asteroid chunks
-            let should_spawn_chunks = asteroid.size == AsteroidSize::Large || asteroid.size == AsteroidSize::Medium;
-            if should_spawn_chunks {
-                let asteroid_chunk_spawns = make_chunk_asteroid_spawns(&mut rng, asteroid, movable);
-                spawn_asteroids(&mut commands, &assets.asteroid_assets, &asteroid_chunk_spawns);
-            }
+            // Send events
+            asteroid_destroyed.send(AsteroidDestroyedEvent {
+                size: asteroid.size,
+                position: movable.position,
+                velocity: movable.velocity
+            });
         }
     }
 }
@@ -225,37 +217,4 @@ fn make_explosion_spawn(
         rotational_velocity: movable.rotational_velocity + add_rot_velocity,
         despawn_after_secs: ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS,
     }
-}
-
-static CHILD_ASTEROID_SPAWN_DISTANCE: f32 = 4.0;
-static CHILD_ASTEROID_MIN_ADD_SPEED: f32 = 50.0;
-static CHILD_ASTEROID_MAX_ADD_SPEED: f32 = 150.0;
-static CHUNK_ASTEROID_VELOCITY_REDUCTION: f32 = 0.8;
-
-pub fn make_chunk_asteroid_spawns(
-    rng: &mut rand::rngs::ThreadRng,
-    asteroid: &Asteroid,
-    movable: &Movable
-) -> [AsteroidSpawn; 2] {
-
-    let size = match asteroid.size {
-        AsteroidSize::Large => AsteroidSize::Medium,
-        AsteroidSize::Medium => AsteroidSize::Small,
-        AsteroidSize::Small => unreachable!(),
-    };
-
-    // Generate some random position and velocity for these two asteroids
-    let chunk_direction = rng.random_unit_vec2();
-    let chunk_velocity = CHILD_ASTEROID_MIN_ADD_SPEED + rng.random_f32() * (CHILD_ASTEROID_MAX_ADD_SPEED - CHILD_ASTEROID_MIN_ADD_SPEED);
-
-    let p1 = movable.position + chunk_direction * CHILD_ASTEROID_SPAWN_DISTANCE * asteroid_scale(asteroid.size);
-    let p2 = movable.position + -chunk_direction * CHILD_ASTEROID_SPAWN_DISTANCE * asteroid_scale(asteroid.size);
-
-    let v1 = movable.velocity * CHUNK_ASTEROID_VELOCITY_REDUCTION + chunk_direction * chunk_velocity;
-    let v2 = movable.velocity * CHUNK_ASTEROID_VELOCITY_REDUCTION + -chunk_direction * chunk_velocity;
-    
-    [
-        AsteroidSpawn { size, position: p1, velocity: v1 },
-        AsteroidSpawn { size, position: p2, velocity: v2 }
-    ]
 }

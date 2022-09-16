@@ -12,10 +12,10 @@ impl Plugin for AssetsPlugin {
     fn build(&self, app: &mut App) {
         // Assets
         app.insert_resource(GameAssets {
-            explosion_assets: explosion::create_explosion_assets(),
-            asteroid_assets: asteroid::create_asteroid_assets(),
-            rocket_assets: player::create_roket_assets(),
-            bullet_assets: bullet::create_bullet_assets(),
+            explosion: explosion::create_explosion_assets(),
+            asteroid: asteroid::create_asteroid_assets(),
+            rocket: player::create_roket_assets(),
+            bullet: bullet::create_bullet_assets(),
         });
 
         // Viewport
@@ -29,10 +29,10 @@ impl Plugin for AssetsPlugin {
 }
 
 pub struct GameAssets {
-    pub explosion_assets: explosion::ExplosionAssets,
-    pub asteroid_assets: asteroid::AsteroidAssets,
-    pub rocket_assets: player::RocketAssets,
-    pub bullet_assets: bullet::BulletAssets,
+    pub explosion: explosion::ExplosionAssets,
+    pub asteroid: asteroid::AsteroidAssets,
+    pub rocket: player::RocketAssets,
+    pub bullet: bullet::BulletAssets,
 }
 
 // Viewport resource
