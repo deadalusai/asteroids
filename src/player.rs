@@ -1,14 +1,17 @@
 use std::f32::consts::TAU;
+use std::time::Duration;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use crate::SystemLabel;
+use crate::assets::GameAssets;
 use crate::asteroid::AsteroidCollidable;
-use crate::hit::*;
+use crate::hit::{HitEvent, distinct_hit_events};
+use crate::movable::{Movable, MovableTorusConstraint, Acceleration, AcceleratingTo};
+use crate::collidable::{Collidable, Collider};
+use crate::explosion::{ExplosionAssetId, SpawnExplosion, spawn_explosions};
+use crate::bullet::{BulletController};
+use crate::svg::simple_svg_to_path;
 use crate::util::*;
-use crate::explosion::*;
-use crate::bullet::*;
-use crate::collidable::*;
-use crate::movable::*;
-use crate::svg::*;
 
 // Player's Rocket
 
@@ -29,36 +32,42 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(asset_initialisation_system);
-        app.add_system(player_keyboard_event_system);
-        app.add_system(player_spawn_system);
+        app.add_system(
+            player_keyboard_event_system
+                .label(SystemLabel::Input)
+        );
+        app.add_system(
+            player_hit_system
+                .after(SystemLabel::Collision)
+        );
         app.add_system(rocket_exhaust_system);
-        app.add_system_to_stage(CoreStage::PostUpdate, player_hit_system);
-        app.add_event::<SpawnPlayerRocketEvent>();
+        app.add_event::<PlayerRocketDestroyedEvent>();
     }
 }
 
+// Events
+
+pub struct PlayerRocketDestroyedEvent;
+
 // Setup
 
-struct PlayerAssets {
+pub struct RocketAssets {
     rocket_dimension: (f32, f32), // (w, h) of the rocket shape
     rocket_shape: Path,
     rocket_exhaust_shape: Path,
 }
 
-fn asset_initialisation_system(
-    mut commands: Commands,
-) {
+pub fn create_roket_assets() -> RocketAssets {
     // See: https://yqnn.github.io/svg-path-editor/
     let rocket_dimension = (4.0, 6.0);
     let rocket_path = "M 0 -3 L -2 2 M -1.6 1 L 1.6 1 M 0 -3 L 2 2";
     let exhaust_path = "M -1 1 L 0 3 L 1 1";
 
-    commands.insert_resource(PlayerAssets {
+    RocketAssets {
         rocket_dimension,
         rocket_shape: simple_svg_to_path(rocket_path),
         rocket_exhaust_shape: simple_svg_to_path(exhaust_path),
-    });
+    }
 }
 
 // Entity
@@ -133,27 +142,22 @@ fn player_keyboard_event_system(
 
 // Spawning
 
-pub struct SpawnPlayerRocketEvent;
-
-fn player_spawn_system(
-    assets: Res<PlayerAssets>,
-    mut spawn_events: EventReader<SpawnPlayerRocketEvent>,
-    mut commands: Commands
-) {
-    for _ in spawn_events.iter() {
-        spawn_player_rocket(&assets, &mut commands);
-    }
+#[derive(Default)]
+pub struct RocketSpawn {
+    position: Vec2,
+    velocity: Vec2,
 }
 
 const LINE_WIDTH: f32 = 2.0;
 
-fn spawn_player_rocket(
-    assets: &Res<PlayerAssets>,
-    commands: &mut Commands
+pub fn spawn_player_rocket(
+    commands: &mut Commands,
+    assets: &RocketAssets,
+    spawn: &RocketSpawn
 ) {
      // Spawn stationary, in the middle of the screen
-    let position = Vec2::splat(0.);
-    let velocity = Vec2::splat(0.);
+    let position = spawn.position;
+    let velocity = spawn.velocity;
     let (_, rocket_shape_height) = assets.rocket_dimension;
     let scale = ROCKET_SCALE;
 
@@ -179,7 +183,7 @@ fn spawn_player_rocket(
     // Collision detection
     // NOTE: Currently using a spherical collision box, shrunk down to fit within the hull
     // TODO(benf): Make a triangular Polygon collision shape
-    let collider = make_circle_collider(position.into(), scale * rocket_shape_height / 4.0);
+    let collider = Collider::circle(position.into(), scale * rocket_shape_height / 4.0);
 
     commands
         .spawn()
@@ -227,7 +231,7 @@ fn rocket_exhaust_system(
 
     for (exhaust, mut draw_mode) in query.iter_mut() {
         let new_alpha = if exhaust.is_firing { exhaust_opacity_over_t(t_secs) } else { 0. };
-        try_update_drawmode_alpha(&mut draw_mode, new_alpha);
+        update_drawmode_alpha(&mut draw_mode, new_alpha);
     }
 }
 
@@ -243,8 +247,8 @@ fn exhaust_opacity_over_t(t_secs: f32) -> f32 {
 
 fn player_hit_system(
     mut commands: Commands,
-    mut explosion_events: EventWriter<SpawnExplosionEvent>,
     mut hit_events: EventReader<HitEvent>,
+    assets: Res<GameAssets>,
     query: Query<&Movable, With<PlayerRocket>>
 ) {
     for &HitEvent(entity) in distinct_hit_events(&mut hit_events) {
@@ -253,8 +257,10 @@ fn player_hit_system(
             // Despawn the entity
             commands.entity(entity).despawn_recursive();
             // Start the explosion
-            explosion_events.send(make_explosion_event(&mut rng, movable, ExplosionAssetId::RocketDebrisA));
-            explosion_events.send(make_explosion_event(&mut rng, movable, ExplosionAssetId::RocketDebrisB));
+            spawn_explosions(&mut commands, &assets.explosion_assets, &[
+                make_explosion_spawn(&mut rng, movable, ExplosionAssetId::RocketDebrisA),
+                make_explosion_spawn(&mut rng, movable, ExplosionAssetId::RocketDebrisB),
+            ]);
         }
     }
 }
@@ -263,21 +269,21 @@ static PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS: f32 = 3.0;
 static PLAYER_ROCKET_EXPLOSION_MAX_ADD_SPEED: f32 = 100.0;
 static PLAYER_ROCKET_EXPLOSION_MAX_ADD_ROT_SPEED: f32 = 0.5;
 
-fn make_explosion_event(
+fn make_explosion_spawn(
     rng: &mut rand::rngs::ThreadRng,
     movable: &Movable,
     mesh_id: ExplosionAssetId
-) -> SpawnExplosionEvent {
+) -> SpawnExplosion {
     // Add some random spin to the individual parts
     let add_velocity = rng.random_unit_vec2() * rng.random_f32() * PLAYER_ROCKET_EXPLOSION_MAX_ADD_SPEED;
     let add_rot_velocity = (rng.random_f32() - 0.5) * 2.0 * PLAYER_ROCKET_EXPLOSION_MAX_ADD_ROT_SPEED;
-    SpawnExplosionEvent {
-        mesh_id,
-        mesh_scale: ROCKET_SCALE,
+    SpawnExplosion {
+        shape_id: mesh_id,
+        shape_scale: ROCKET_SCALE,
         position: movable.position,
         velocity: movable.velocity + add_velocity,
         heading_angle: movable.heading_angle,
         rotational_velocity: movable.rotational_velocity + add_rot_velocity,
-        despawn_after_secs: PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS,
+        despawn_after: Duration::from_secs_f32(PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS),
     }
 }

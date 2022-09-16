@@ -1,7 +1,8 @@
-use bevy::{prelude::{Color, Vec2}, utils::HashSet};
+use bevy::prelude::{Color, Vec2, Quat};
+use bevy::utils::HashSet;
 use bevy_prototype_lyon::prelude::DrawMode;
 
-pub fn try_update_drawmode_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
+pub fn update_drawmode_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
 
     fn update_color_alpha(color: &mut Color, a: f32) {
         let alpha_ref = match color {
@@ -57,4 +58,10 @@ pub fn distinct_by<T, F, V>(iterator: impl Iterator<Item=T>, selector: F) -> imp
 {
     let mut seen = HashSet::new();
     iterator.filter(move |v| seen.insert(selector(v)))
+}
+
+// Angle / Quaternion conversion
+
+pub fn heading_angle_to_transform_rotation(heading_angle: f32) -> Quat {
+    Quat::from_rotation_z(-heading_angle)
 }

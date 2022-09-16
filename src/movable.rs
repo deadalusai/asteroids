@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use crate::viewport::Viewport;
+use crate::assets::Viewport;
+use crate::{util::*, SystemLabel};
 
 // Component for entities which are moving (basically everything)
 
@@ -7,12 +8,21 @@ pub struct MovablePlugin;
 
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(CoreStage::Update, movable_system);
-        app.add_system_to_stage(CoreStage::Update, movable_torus_constraint_system);
+        app.add_system_to_stage(CoreStage::Update,
+            movable_system
+                .label(SystemLabel::Movement)
+                .after(SystemLabel::Input)
+        );
+        app.add_system_to_stage(CoreStage::Update,
+            movable_torus_constraint_system
+                .label(SystemLabel::Movement)
+                .after(movable_system)
+        );
         app.add_system_to_stage(CoreStage::Update,
             movable_update_transform_system
-                .after(movable_system)
-                .after(movable_torus_constraint_system));
+                .label(SystemLabel::Movement)
+                .after(movable_torus_constraint_system)
+        );
     }
 }
 
@@ -142,10 +152,6 @@ fn movable_update_transform_system(mut query: Query<(&Movable, &mut Transform)>)
         transform.translation.y = movable.position.y;
         transform.rotation = heading_angle_to_transform_rotation(movable.heading_angle);
     }
-}
-
-pub fn heading_angle_to_transform_rotation(heading_angle: f32) -> Quat {
-    Quat::from_rotation_z(-heading_angle)
 }
 
 // Torus world

@@ -43,7 +43,9 @@ pub enum Collider {
     Circle(sepax2d::circle::Circle),
 } 
 
-pub fn make_circle_collider(position: Vec2, radius: f32) -> Collider {
-    let circle = sepax2d::circle::Circle::new(position.into(), radius);
-    Collider::Circle(circle)
-} 
+impl Collider {
+    pub fn circle(position: Vec2, radius: f32) -> Collider {
+        let circle = sepax2d::circle::Circle::new(position.into(), radius);
+        Collider::Circle(circle)
+    }
+}

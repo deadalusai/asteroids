@@ -7,20 +7,34 @@ mod player;
 mod bullet;
 mod asteroid;
 mod explosion;
-mod viewport;
 mod hud;
+mod game;
+mod assets;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-use viewport::*;
 use collidable::*;
 use movable::*;
+use assets::*;
 use hud::*;
 use hit::*;
 use player::*;
 use bullet::*;
 use asteroid::*;
 use explosion::*;
+use util::*;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemLabel)]
+pub enum StartupSystemLabel {
+    LoadGameAssets
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemLabel)]
+pub enum SystemLabel {
+    Input,
+    Movement,
+    Collision,
+}
 
 fn main() {
     let title = "Asteroids".into();
@@ -42,29 +56,32 @@ fn main() {
         .add_plugin(CollidablePlugin)
         .add_plugin(MovablePlugin)
         .add_plugin(HitEventsPlugin)
-        .add_plugin(ViewportPlugin)
+        .add_plugin(AssetsPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(BulletPlugin)
         .add_plugin(AsteroidPlugin)
         .add_plugin(ExplosionPlugin)
         .add_plugin(HeadsUpDisplayPlugin)
-        .add_startup_system(startup_system)
-        .add_system(global_keyboard_event_system)
+        .add_startup_system(
+            startup_system
+                .after(StartupSystemLabel::LoadGameAssets)
+        )
         .run();
 }
 
 fn startup_system(
     mut commands: Commands,
-    mut player_spawn_events: EventWriter<SpawnPlayerRocketEvent>,
-    mut asteroid_spawn_events: EventWriter<SpawnAsteroidEvent>
+    viewport: Res<Viewport>,
+    assets: Res<GameAssets>
 ) {
     // Camera
     commands.spawn_bundle(Camera2dBundle::default());
 
     // Player
-    player_spawn_events.send(SpawnPlayerRocketEvent);
+    spawn_player_rocket(&mut commands, &assets.rocket_assets, &RocketSpawn::default());
 
     // Asteroids
+    let mut rng = rand::thread_rng();
     let asteroids = [
         (AsteroidSize::Large, 2),
         (AsteroidSize::Medium, 3),
@@ -72,28 +89,40 @@ fn startup_system(
     ];
     for &(size, count) in &asteroids {
         for _ in 0..count {
-            asteroid_spawn_events.send(SpawnAsteroidEvent(size, None));
+            let (position, velocity) = random_asteroid_position_and_speed(&mut rng, &viewport);
+            let spawn = AsteroidSpawn { size, position, velocity };
+            spawn_asteroids(&mut commands, &assets.asteroid_assets, &[spawn]);
         }
     }
 }
 
-fn global_keyboard_event_system(
-    kb: Res<Input<KeyCode>>,
-    mut player_spawn_events: EventWriter<SpawnPlayerRocketEvent>,
-    mut asteroid_spawn_events: EventWriter<SpawnAsteroidEvent>,
-) {
-    // DEBUG: Spawn another player rocket
-    if kb.just_released(KeyCode::Numpad0) {
-        player_spawn_events.send(SpawnPlayerRocketEvent);
-    }
-    // DEBUG: Spawn another asteroid
-    if kb.just_released(KeyCode::Numpad1) {
-        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Small, None));
-    }
-    if kb.just_released(KeyCode::Numpad2) {
-        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Medium, None));
-    }
-    if kb.just_released(KeyCode::Numpad3) {
-        asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Large, None));
-    }
+static ASTEROID_MAX_SPEED: f32 = 350.0;
+static ASTEROID_MIN_SPEED: f32 = 80.0;
+
+fn random_asteroid_position_and_speed(rng: &mut rand::rngs::ThreadRng, viewport: &Viewport) -> (Vec2, Vec2) {
+    // Generate a random asteroid
+    let position = rng.random_unit_vec2() * Vec2::new(viewport.width, viewport.height) / 2.0;
+    let velocity = ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED);
+    (position, velocity)
 }
+
+// fn global_keyboard_event_system(
+//     kb: Res<Input<KeyCode>>,
+//     mut player_spawn_events: EventWriter<PlayerRocketSpawnEvent>,
+//     mut asteroid_spawn_events: EventWriter<SpawnAsteroidEvent>,
+// ) {
+//     // DEBUG: Spawn another player rocket
+//     if kb.just_released(KeyCode::Numpad0) {
+//         player_spawn_events.send(PlayerRocketSpawnEvent);
+//     }
+//     // DEBUG: Spawn another asteroid
+//     if kb.just_released(KeyCode::Numpad1) {
+//         asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Small, None));
+//     }
+//     if kb.just_released(KeyCode::Numpad2) {
+//         asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Medium, None));
+//     }
+//     if kb.just_released(KeyCode::Numpad3) {
+//         asteroid_spawn_events.send(SpawnAsteroidEvent(AsteroidSize::Large, None));
+//     }
+// }

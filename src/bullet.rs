@@ -2,10 +2,13 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use crate::SystemLabel;
+use crate::assets::GameAssets;
 use crate::hit::*;
 use crate::movable::*;
 use crate::collidable::*;
-use crate::svg::*;
+use crate::svg::simple_svg_to_path;
+use crate::util::*;
 
 // Bullets
 
@@ -16,38 +19,42 @@ pub struct BulletPlugin;
 
 impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(asset_initialisation_system);
-        app.add_system(bullet_controller_system);
-        app.add_system(bullet_collision_system);
+        app.add_system(
+            bullet_controller_system
+                .after(SystemLabel::Input)
+        );
+        app.add_system(
+            bullet_collision_system
+                .label(SystemLabel::Collision)
+                .after(SystemLabel::Movement)
+        );
         app.add_system_to_stage(CoreStage::PostUpdate, bullet_despawn_system);
     }
 }
 
 // Setup
 
-struct BulletAssets {
+pub struct BulletAssets {
     bullet_dimension: f32, // h of the bullet shape
     bullet_shape: Path,
 }
 
-fn asset_initialisation_system(
-    mut commands: Commands
-) {
+pub fn create_bullet_assets() -> BulletAssets {
     // See: https://yqnn.github.io/svg-path-editor/
     let bullet_dimension = 2.0;
     let bullet_path = "M 0 1 L 0 -1";
 
-    commands.insert_resource(BulletAssets {
+    BulletAssets {
         bullet_dimension,
         bullet_shape: simple_svg_to_path(bullet_path),
-    });
+    }
 }
 
 // Entity
 
 #[derive(Component)]
 pub struct Bullet {
-    despawn_after: Duration,
+    despawn_timer: Timer,
 }
 
 /// Marker component which indicates that an entity should be considered for bullet collisions
@@ -56,7 +63,7 @@ pub struct BulletCollidable;
 
 // Spawning
 
-pub struct SpawnBullet {
+pub struct BulletSpawn {
     pub position: Vec2,
     pub velocity: Vec2,
     pub heading_angle: f32,
@@ -65,10 +72,10 @@ pub struct SpawnBullet {
 
 const LINE_WIDTH: f32 = 2.0;
 
-fn spawn_bullet(
-    assets: &Res<BulletAssets>,
+pub fn spawn_bullet(
     commands: &mut Commands,
-    spawn: SpawnBullet
+    assets: &BulletAssets,
+    spawn: BulletSpawn
 ) {
     let scale = BULLET_SCALE;
     let bullet_color = Color::rgba(0.8, 0.8, 0.8, 1.0);
@@ -81,12 +88,12 @@ fn spawn_bullet(
         .with_scale(Vec3::splat(scale));
 
     // collision detection
-    let collider = make_circle_collider(spawn.position.into(), scale * assets.bullet_dimension / 2.);
+    let collider = Collider::circle(spawn.position.into(), scale * assets.bullet_dimension / 2.);
 
     commands
         .spawn()
         .insert(Bullet {
-            despawn_after: spawn.despawn_after
+            despawn_timer: Timer::new(spawn.despawn_after, false),
         })
         .insert(Movable {
             position: spawn.position,
@@ -108,10 +115,10 @@ fn spawn_bullet(
 }
 
 fn bullet_despawn_system(
-    time: Res<Time>,
     mut commands: Commands,
     mut hit_events: EventReader<HitEvent>,
-    query: Query<(Entity, &Bullet)>
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Bullet)>
 ) {
     // Despawn bullets which have hit something
     for &HitEvent(entity) in distinct_hit_events(&mut hit_events) {
@@ -121,9 +128,9 @@ fn bullet_despawn_system(
     }
 
     // Despawn bullets which have expired
-    let time_since_startup = time.time_since_startup();
-    for (entity, bullet) in query.iter() {
-        if time_since_startup >= bullet.despawn_after {
+    for (entity, mut bullet) in query.iter_mut() {
+        bullet.despawn_timer.tick(time.delta());
+        if bullet.despawn_timer.finished() {
             commands.entity(entity).despawn();
         }
     }
@@ -184,14 +191,14 @@ impl BulletController {
 
 fn bullet_controller_system(
     time: Res<Time>,
-    assets: Res<BulletAssets>,
+    assets: Res<GameAssets>,
     mut commands: Commands,
     mut query: Query<(&Movable, &mut BulletController)>
 ) {
     for (movable, mut controller) in query.iter_mut() {
         let fire_state = controller.update(&time);
         if fire_state == FireState::Fire {
-            spawn_bullet(&assets, &mut commands, SpawnBullet {
+            spawn_bullet(&mut commands, &assets.bullet_assets, BulletSpawn {
                 position: movable.position + movable.heading_normal() * controller.bullet_start_offset,
                 velocity: movable.velocity + movable.heading_normal() * controller.bullet_speed,
                 heading_angle: movable.heading_angle,
