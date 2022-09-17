@@ -16,15 +16,14 @@ use crate::util::*;
 
 static ROCKET_RATE_OF_TURN: f32 = 999.0; // Instant rotation acceleration / deceleration
 static ROCKET_RATE_OF_TURN_DRAG: f32 = 999.0;
-static ROCKET_RATE_OF_ACCELERATION: f32 = 700.0;
-static ROCKET_RATE_OF_ACCELERATION_DRAG: f32 = 180.0;
-static ROCKET_MAX_SPEED: f32 = 900.0;
-static ROCKET_MAX_DRAG_SPEED: f32 = 50.0;
+static ROCKET_RATE_OF_ACCELERATION: f32 = 300.0;
+static ROCKET_RATE_OF_ACCELERATION_DRAG: f32 = 50.0;
+static ROCKET_MAX_SPEED: f32 = 200.0;
+static ROCKET_MAX_DRAG_SPEED: f32 = 20.0;
 static ROCKET_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
-static ROCKET_BULLET_SPEED: f32 = 900.0;
+static ROCKET_BULLET_SPEED: f32 = 250.0;
 static ROCKET_BULLET_MAX_AGE_SECS: f32 = 2.0;
 static ROCKET_FIRE_RATE: f32 = 5.0; // per second
-static ROCKET_SCALE: f32 = 10.0;
 static ROCKET_Z: f32 = 10.0;
 
 pub struct PlayerPlugin;
@@ -147,7 +146,7 @@ pub struct RocketSpawn {
     velocity: Vec2,
 }
 
-const LINE_WIDTH: f32 = 2.0;
+const LINE_WIDTH: f32 = 0.2;
 
 pub fn spawn_player_rocket(
     commands: &mut Commands,
@@ -158,31 +157,28 @@ pub fn spawn_player_rocket(
     let position = spawn.position;
     let velocity = spawn.velocity;
     let (_, rocket_shape_height) = assets.rocket_dimension;
-    let scale = ROCKET_SCALE;
 
     // Rocket
     let rocket_color = Color::rgba(1., 1., 1., 1.);
-    let rocket_draw_mode = DrawMode::Stroke(StrokeMode::new(rocket_color, LINE_WIDTH / scale));
+    let rocket_draw_mode = DrawMode::Stroke(StrokeMode::new(rocket_color, LINE_WIDTH));
 
     // Rocket exhaust
     let rocket_exhaust_color = Color::rgba(1., 1., 1., 0.);
-    let rocket_exhaust_draw_mode = DrawMode::Stroke(StrokeMode::new(rocket_exhaust_color, LINE_WIDTH / scale));
+    let rocket_exhaust_draw_mode = DrawMode::Stroke(StrokeMode::new(rocket_exhaust_color, LINE_WIDTH));
     
     // Transform
-    let transform = Transform::default()
-        .with_translation(Vec3::new(position.x, position.y, ROCKET_Z))
-        .with_scale(Vec3::splat(scale));
+    let transform = Transform::from_translation(Vec3::new(position.x, position.y, ROCKET_Z));
 
     // Bullet controller
     let b_fire_rate = ROCKET_FIRE_RATE;
     let b_bullet_speed = ROCKET_BULLET_SPEED;
     let b_bullet_max_age_secs = ROCKET_BULLET_MAX_AGE_SECS;
-    let b_start_offset = (rocket_shape_height / 2.) * scale; // Offset the bullets forward of the rocket
+    let b_start_offset = rocket_shape_height / 2.0; // Offset the bullets forward of the rocket
     
     // Collision detection
     // NOTE: Currently using a spherical collision box, shrunk down to fit within the hull
     // TODO(benf): Make a triangular Polygon collision shape
-    let collider = Collider::circle(position.into(), scale * rocket_shape_height / 4.0);
+    let collider = Collider::circle(position.into(), rocket_shape_height / 4.0);
 
     commands
         .spawn()
@@ -281,7 +277,7 @@ fn make_explosion_spawn(
     let add_rot_velocity = (rng.random_f32() - 0.5) * 2.0 * PLAYER_ROCKET_EXPLOSION_MAX_ADD_ROT_SPEED;
     SpawnExplosion {
         shape_id: mesh_id,
-        shape_scale: ROCKET_SCALE,
+        shape_scale: 1.0,
         position: movable.position,
         velocity: movable.velocity + add_velocity,
         heading_angle: movable.heading_angle,

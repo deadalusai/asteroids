@@ -65,9 +65,9 @@ pub fn create_asteroid_assets() -> AsteroidAssets {
 static ASTEROID_Z: f32 = 20.0;
 static ASTEROID_MAX_SPIN_RATE: f32 = TAU * 0.7;
 static ASTEROID_MIN_SPIN_RATE: f32 = TAU * 0.05;
-static ASTEROID_SCALE_SMALL: f32 = 5.0;
-static ASTEROID_SCALE_MEDIUM: f32 = 10.0;
-static ASTEROID_SCALE_LARGE: f32 = 15.0;
+static ASTEROID_SMALL_SCALE: f32 = 1.0;
+static ASTEROID_MEDIUM_SCALE: f32 = 2.0;
+static ASTEROID_LARGE_SCALE: f32 = 3.0;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AsteroidSize {
@@ -92,13 +92,13 @@ pub struct AsteroidCollidable;
 
 // Spawning
 
-const LINE_WIDTH: f32 = 2.0;
+const LINE_WIDTH: f32 = 0.2;
 
 fn asteroid_scale(size: AsteroidSize) -> f32 {
     match size {
-        AsteroidSize::Small => ASTEROID_SCALE_SMALL,
-        AsteroidSize::Medium => ASTEROID_SCALE_MEDIUM,
-        AsteroidSize::Large => ASTEROID_SCALE_LARGE,
+        AsteroidSize::Small => ASTEROID_SMALL_SCALE,
+        AsteroidSize::Medium => ASTEROID_MEDIUM_SCALE,
+        AsteroidSize::Large => ASTEROID_LARGE_SCALE,
     }
 }
 

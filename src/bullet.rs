@@ -10,7 +10,6 @@ use crate::util::*;
 
 // Bullets
 
-static BULLET_SCALE: f32 = 5.0;
 static BULLET_Z: f32 = 5.0;
 
 pub struct BulletPlugin;
@@ -68,25 +67,23 @@ pub struct BulletSpawn {
     pub despawn_after_secs: f32,
 }
 
-const LINE_WIDTH: f32 = 2.0;
+const LINE_WIDTH: f32 = 0.2;
 
 pub fn spawn_bullet(
     commands: &mut Commands,
     assets: &BulletAssets,
     spawn: BulletSpawn
 ) {
-    let scale = BULLET_SCALE;
     let bullet_color = Color::rgba(0.8, 0.8, 0.8, 1.0);
-    let bullet_draw_mode = DrawMode::Stroke(StrokeMode::new(bullet_color, LINE_WIDTH / scale));
+    let bullet_draw_mode = DrawMode::Stroke(StrokeMode::new(bullet_color, LINE_WIDTH));
 
     // Transform
     let transform = Transform::default()
         .with_translation(Vec3::new(spawn.position.x, spawn.position.y, BULLET_Z))
-        .with_rotation(heading_angle_to_transform_rotation(spawn.heading_angle))
-        .with_scale(Vec3::splat(scale));
+        .with_rotation(heading_angle_to_transform_rotation(spawn.heading_angle));
 
     // collision detection
-    let collider = Collider::circle(spawn.position.into(), scale * assets.bullet_dimension / 2.);
+    let collider = Collider::circle(spawn.position.into(), assets.bullet_dimension / 2.);
 
     commands
         .spawn()

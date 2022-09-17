@@ -74,7 +74,7 @@ pub struct SpawnExplosion {
     pub despawn_after_secs: f32,
 }
 
-const LINE_WIDTH: f32 = 2.0;
+const LINE_WIDTH: f32 = 0.2;
 
 pub fn spawn_explosions(
     commands: &mut Commands,
@@ -131,7 +131,7 @@ fn explosion_system(
             continue;
         }
         // Slowly fade to transparent
-        let percent_left = explosion.despawn_timer.elapsed_secs(); // 1.0 -> 0.0
+        let percent_left = explosion.despawn_timer.percent_left(); // 1.0 -> 0.0
         update_drawmode_alpha(&mut draw_mode, percent_left);
     }
 }

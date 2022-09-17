@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::assets::Viewport;
+use crate::game::WorldBoundaries;
 use crate::{util::*, SystemLabel};
 
 // Component for entities which are moving (basically everything)
@@ -162,18 +162,15 @@ pub struct MovableTorusConstraint;
 static TORUS_GUTTER: f32 = 25.0;
 
 fn movable_torus_constraint_system(
-    viewport: Res<Viewport>,
+    world_boundaries: Res<WorldBoundaries>,
     mut query: Query<&mut Movable, With<MovableTorusConstraint>>
 ) {
     // NOTE: 0,0 is in the middle of the window.
-    let half_width = viewport.width / 2.;
-    let half_height = viewport.height / 2.;
-
     for mut movable in query.iter_mut() {
-        let right = half_width + TORUS_GUTTER;
-        let left = -half_width - TORUS_GUTTER;
-        let top = half_height + TORUS_GUTTER;
-        let bottom = -half_height - TORUS_GUTTER;
+        let right = world_boundaries.right + TORUS_GUTTER;
+        let left = world_boundaries.left - TORUS_GUTTER;
+        let top = world_boundaries.top + TORUS_GUTTER;
+        let bottom = world_boundaries.bottom - TORUS_GUTTER;
         // Has this Movable left the screen?
         // Teleport them to the other side of the Torus
         if movable.position.x > right {

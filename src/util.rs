@@ -65,3 +65,50 @@ pub fn distinct_by<T, F, V>(iterator: impl Iterator<Item=T>, selector: F) -> imp
 pub fn heading_angle_to_transform_rotation(heading_angle: f32) -> Quat {
     Quat::from_rotation_z(-heading_angle)
 }
+
+// Lines and ray utilities
+
+pub struct Line {
+    origin: Vec2,
+    normal: Vec2,
+}
+
+impl Line {
+    pub fn from_origin_and_normal(origin: Vec2, normal: Vec2) -> Self {
+        Self { origin, normal }
+    }
+
+    /// Tests for an intersection between the given and this line.
+    /// Returns the distance along the ray at which the intersection occurs.
+    pub fn try_intersect_line(&self, ray: &Ray) -> Option<f32> {
+        // intersection of ray with a line (or plane, with 3d vectors) at point `t`
+        //  t = ((line_origin - ray_origin) . line_normal) / (ray_direction . line_normal)
+        let denominator = ray.direction.dot(self.normal);
+        // When the line and ray are nearing parallel the denominator approaches zero.
+        if denominator.abs() < 1.0e-6 {
+            return None;
+        }
+        let numerator = (self.origin - ray.origin).dot(self.normal);
+        let t = numerator / denominator;
+        // A negative `t` indicates the plane is behind the ray origin
+        if t < 0.0 {
+            return None;
+        }
+        Some(t)
+    }
+}
+
+pub struct Ray {
+    origin: Vec2,
+    direction: Vec2,
+}
+
+impl Ray {
+    pub fn from_origin_and_direction(origin: Vec2, direction: Vec2) -> Self {
+        Self { origin, direction }
+    }
+
+    pub fn point_at_t(&self, t: f32) -> Vec2 {
+        self.origin + (self.direction * t)
+    }
+}

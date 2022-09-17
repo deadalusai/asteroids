@@ -1,18 +1,41 @@
 use bevy::prelude::*;
 use rand::thread_rng;
-use crate::assets::{GameAssets, Viewport};
+use crate::assets::GameAssets;
 use crate::player::{PlayerRocketDestroyedEvent, RocketSpawn, spawn_player_rocket};
-use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, spawn_asteroid, AsteroidKind};
+use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidKind, spawn_asteroid};
 use crate::util::*;
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Game::new(GameInit { asteroid_count: 10, player_lives: 3 }));
-        app.add_system_to_stage(CoreStage::PreUpdate, game_update_system);
+        app.insert_resource(Game::new(GameInit { asteroid_count: 1, player_lives: 3 }));
+        app.insert_resource(WorldBoundaries::default());
+        app.add_system_to_stage(CoreStage::PreUpdate, world_boundaries_update_system);
+        app.add_system_to_stage(CoreStage::PreUpdate, game_update_system.after(world_boundaries_update_system));
         app.add_system_to_stage(CoreStage::PostUpdate, game_events_system);
     }
+}
+
+// World boundary information
+
+#[derive(Default)]
+pub struct WorldBoundaries {
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+fn world_boundaries_update_system(
+    mut world_boundaries: ResMut<WorldBoundaries>,
+    projection: Query<&bevy::render::camera::OrthographicProjection>
+) {
+    let projection = projection.get_single().unwrap();
+    world_boundaries.left = projection.left;
+    world_boundaries.right = projection.right;
+    world_boundaries.top = projection.top;
+    world_boundaries.bottom = projection.bottom;
 }
 
 // Game Controller
@@ -159,7 +182,7 @@ fn game_events_system(
 fn game_update_system(
     mut commands: Commands,
     mut game: ResMut<Game>,
-    viewport: Res<Viewport>,
+    world_boundaries: Res<WorldBoundaries>,
     time: Res<Time>,
     assets: Res<GameAssets>,
 ) {
@@ -176,7 +199,7 @@ fn game_update_system(
         match sched.instruction {
             AsteroidSpawnInstruction::FromAnywhere => {
                 // Spawn on-screen asteroids
-                let position = random_onscreen_position(&mut rng, &viewport);
+                let position = random_onscreen_position(&mut rng, &world_boundaries);
                 let velocity = random_asteroid_velocity(&mut rng);
                 let size = random_size(&mut rng);
                 let kind = AsteroidKind::Original;
@@ -186,7 +209,7 @@ fn game_update_system(
             },
             AsteroidSpawnInstruction::FromOffScreen => {
                 // Spawn off-screen asteroids
-                let position = random_offscreen_position(&mut rng, &viewport);
+                let position = random_offscreen_position(&mut rng, &world_boundaries);
                 let velocity = random_asteroid_velocity(&mut rng);
                 let size = random_size(&mut rng);
                 let kind = AsteroidKind::Original;
@@ -209,9 +232,9 @@ fn game_update_system(
     }
 }
 
-static CHILD_ASTEROID_SPAWN_DISTANCE: f32 = 4.0;
-static CHILD_ASTEROID_MIN_ADD_SPEED: f32 = 50.0;
-static CHILD_ASTEROID_MAX_ADD_SPEED: f32 = 150.0;
+static CHILD_ASTEROID_SPAWN_DISTANCE: f32 = 2.0;
+static CHILD_ASTEROID_MIN_ADD_SPEED: f32 = 5.0;
+static CHILD_ASTEROID_MAX_ADD_SPEED: f32 = 15.0;
 static CHUNK_ASTEROID_VELOCITY_REDUCTION: f32 = 0.8;
 
 pub fn random_chunk_asteroid_state(rng: &mut rand::rngs::ThreadRng, position: Vec2, velocity: Vec2) -> [(Vec2, Vec2); 2] {
@@ -229,23 +252,40 @@ pub fn random_chunk_asteroid_state(rng: &mut rand::rngs::ThreadRng, position: Ve
     [(p1, v1), (p2, v2)]
 }
 
-static ASTEROID_MAX_SPEED: f32 = 350.0;
-static ASTEROID_MIN_SPEED: f32 = 80.0;
+static ASTEROID_MAX_SPEED: f32 = 50.0;
+static ASTEROID_MIN_SPEED: f32 = 5.0;
 
 fn random_asteroid_velocity(rng: &mut rand::rngs::ThreadRng) -> Vec2 {
     ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED)
 }
 
-fn random_offscreen_position(rng: &mut rand::rngs::ThreadRng, viewport: &Viewport) -> Vec2 {
-    // Pick a random position off the top of the screen
-    // TODO(benf): this is pretty shitty - pick a position of any side of the screen
-    let x = rng.random_f32() * viewport.width - (viewport.width / 2.);
-    let y = viewport.height / 2.;
-    Vec2::new(x, y)
+fn get_world_boundary_lines(world_boundaries: &WorldBoundaries) -> [Line; 4] {
+    let left   = Vec2::new(world_boundaries.left, 0.0);
+    let right  = Vec2::new(world_boundaries.right, 0.0);
+    let top    = Vec2::new(0.0, world_boundaries.top);
+    let bottom = Vec2::new(0.0, world_boundaries.bottom);
+    [
+        Line::from_origin_and_normal(left,   -left.normalize()),
+        Line::from_origin_and_normal(right,  -right.normalize()),
+        Line::from_origin_and_normal(top,    -top.normalize()),
+        Line::from_origin_and_normal(bottom, -bottom.normalize()),
+    ]
 }
 
-fn random_onscreen_position(rng: &mut rand::rngs::ThreadRng, viewport: &Viewport) -> Vec2 {
-    rng.random_unit_vec2() * Vec2::new(viewport.width, viewport.height) / 2.0
+fn random_offscreen_position(rng: &mut rand::rngs::ThreadRng, world_boundaries: &WorldBoundaries) -> Vec2 {
+    // TODO: Pick a random position off the screen
+    // Project this line until it intersects with one of the edges of the world_boundaries.
+    let ray = Ray::from_origin_and_direction(Vec2::ZERO, rng.random_unit_vec2());
+    let t = get_world_boundary_lines(world_boundaries)
+        .iter()
+        .filter_map(|line| line.try_intersect_line(&ray))
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap();
+    return ray.point_at_t(t);
+}
+
+fn random_onscreen_position(rng: &mut rand::rngs::ThreadRng, world_boundaries: &WorldBoundaries) -> Vec2 {
+    rng.random_unit_vec2() * (Vec2::new(world_boundaries.right, world_boundaries.top) * 2.0)
 }
 
 fn random_size(rng: &mut rand::rngs::ThreadRng) -> AsteroidSize {

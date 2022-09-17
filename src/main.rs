@@ -67,16 +67,32 @@ fn main() {
         .add_plugin(GamePlugin)
         .add_startup_system(
             startup_system
-                .after(StartupSystemLabel::LoadGameAssets)
-        )
+                .after(StartupSystemLabel::LoadGameAssets))
         .add_system(global_keyboard_event_system)
         .run();
 }
 
+// Startup
+
+const FIXED_VIEWPORT_WIDTH: f32 = 256.0;
+
 fn startup_system(mut commands: Commands) {
-    // Camera
-    commands.spawn_bundle(Camera2dBundle::default());
+    // Spawn a camera
+    // NOTE: Our graphics are small! Tune the projection to keep the size of the "world" known
+    // despite window scale
+    commands.spawn_bundle(Camera2dBundle {
+        transform: Transform::from_xyz(0.0, 0.0, 999.9),
+        projection: bevy::render::camera::OrthographicProjection {
+            far: 1000.0,
+            depth_calculation: bevy::render::camera::DepthCalculation::ZDifference,
+            scaling_mode: bevy::render::camera::ScalingMode::FixedHorizontal(FIXED_VIEWPORT_WIDTH),
+            ..default()
+        },
+        ..default()
+    });
 }
+
+// Keyboard handlers
 
 fn global_keyboard_event_system(
     kb: Res<Input<KeyCode>>,
