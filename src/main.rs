@@ -65,10 +65,7 @@ fn main() {
         .add_plugin(ExplosionPlugin)
         .add_plugin(HeadsUpDisplayPlugin)
         .add_plugin(GamePlugin)
-        .add_startup_system(
-            startup_system
-                .after(StartupSystemLabel::LoadGameAssets))
-        .add_system(global_keyboard_event_system)
+        .add_startup_system(startup_system)
         .run();
 }
 
@@ -90,16 +87,4 @@ fn startup_system(mut commands: Commands) {
         },
         ..default()
     });
-}
-
-// Keyboard handlers
-
-fn global_keyboard_event_system(
-    kb: Res<Input<KeyCode>>,
-    mut game: ResMut<Game>
-) {
-    // DEBUG: Reset the game state
-    if kb.just_released(KeyCode::R) {
-        game.reset();
-    }
 }

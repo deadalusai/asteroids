@@ -1,7 +1,7 @@
-use std::f32::consts::TAU;
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 use bevy_prototype_lyon::prelude::*;
-use rand::{rngs::ThreadRng, thread_rng};
+use rand::thread_rng;
 use crate::SystemLabel;
 use crate::assets::GameAssets;
 use crate::bullet::BulletCollidable;
@@ -42,19 +42,26 @@ pub struct AsteroidDestroyedEvent {
 // Setup
 
 pub struct AsteroidAssets {
-    asteroid_shapes: Vec<(f32, Path)>,
+    asteroid_shapes: HashMap<AsteroidShapeId, (f32, Path)>,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+pub enum AsteroidShapeId { A, B, C }
+
+impl AsteroidShapeId {
+    pub const VALUES: [Self; 3] = [ Self::A, Self::B, Self::C ];
 }
 
 pub fn create_asteroid_assets() -> AsteroidAssets {
     let asteroid_shapes = vec![
         // diameter, path
         // See: https://yqnn.github.io/svg-path-editor/
-        (10.0, "M -2 -5 L -5 -2 L -5 0 L -2 0 L -5 2 L -2 5 L 3 4 L 2 2 L 5 0 L 4 -2 L 1 -5 Z"),
-        (10.0, "M -5 -3 L -5 2 L -3 5 L 2 5 L 5 3 L 4 1 L 6 -2 L 4 -5 L 1 -3 L -2 -6 Z"),
-        (10.0, "M 4 -3 L 0 -5 L -3 -5 L -2 -2 L -5 -2 L -5 0 L -2 5 L 1 2 L 2 4 L 5 1 L 1 -1 L 5 -2 L 5 -3 Z")
+        (AsteroidShapeId::A, 10.0, "M -2 -5 L -5 -2 L -5 0 L -2 0 L -5 2 L -2 5 L 3 4 L 2 2 L 5 0 L 4 -2 L 1 -5 Z"),
+        (AsteroidShapeId::B, 10.0, "M -5 -3 L -5 2 L -3 5 L 2 5 L 5 3 L 4 1 L 6 -2 L 4 -5 L 1 -3 L -2 -6 Z"),
+        (AsteroidShapeId::C, 10.0, "M 4 -3 L 0 -5 L -3 -5 L -2 -2 L -5 -2 L -5 0 L -2 5 L 1 2 L 2 4 L 5 1 L 1 -1 L 5 -2 L 5 -3 Z")
     ];
     let asteroid_shapes = asteroid_shapes.into_iter()
-        .map(|(dim, svg)| (dim, simple_svg_to_path(svg)))
+        .map(|(id, dim, svg)| (id, (dim, simple_svg_to_path(svg))))
         .collect();
 
     AsteroidAssets { asteroid_shapes }
@@ -63,8 +70,6 @@ pub fn create_asteroid_assets() -> AsteroidAssets {
 // Asteroids
 
 static ASTEROID_Z: f32 = 20.0;
-static ASTEROID_MAX_SPIN_RATE: f32 = TAU * 0.7;
-static ASTEROID_MIN_SPIN_RATE: f32 = TAU * 0.05;
 static ASTEROID_SMALL_SCALE: f32 = 1.0;
 static ASTEROID_MEDIUM_SCALE: f32 = 2.0;
 static ASTEROID_LARGE_SCALE: f32 = 3.0;
@@ -72,6 +77,10 @@ static ASTEROID_LARGE_SCALE: f32 = 3.0;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AsteroidSize {
     Small, Medium, Large
+}
+
+impl AsteroidSize {
+    pub const VALUES: [Self; 3] = [ Self::Large, Self::Medium, Self::Small ];
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -106,22 +115,23 @@ fn asteroid_scale(size: AsteroidSize) -> f32 {
 pub struct AsteroidSpawn {
     pub size: AsteroidSize,
     pub kind: AsteroidKind,
+    pub shape: AsteroidShapeId,
     pub position: Vec2,
     pub velocity: Vec2,
+    pub rotation: f32,
 }
 
 pub fn spawn_asteroid(
     commands: &mut Commands,
     assets: &AsteroidAssets,
-    rng: &mut ThreadRng,
     spawn: AsteroidSpawn
 ) {
     let position = spawn.position;
     let velocity = spawn.velocity;
-    let rotation = ASTEROID_MIN_SPIN_RATE + rng.random_f32() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE);
+    let rotation = spawn.rotation;
 
     // Mesh
-    let (diameter, shape) = rng.random_choice(&assets.asteroid_shapes).unwrap();
+    let (diameter, shape) = &assets.asteroid_shapes[&spawn.shape];
     let scale = asteroid_scale(spawn.size);
 
     let color = Color::rgba(0.6, 0.6, 0.6, 1.);
@@ -144,7 +154,7 @@ pub fn spawn_asteroid(
             velocity,
             acceleration: None,
             heading_angle: 0.,
-            rotational_velocity: rotation,
+            rotational_velocity: rotation * std::f32::consts::TAU,
             rotational_acceleration: None,
         })
         .insert(MovableTorusConstraint)

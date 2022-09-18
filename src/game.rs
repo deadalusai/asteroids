@@ -2,15 +2,16 @@ use bevy::prelude::*;
 use rand::thread_rng;
 use crate::assets::GameAssets;
 use crate::player::{PlayerRocketDestroyedEvent, RocketSpawn, spawn_player_rocket};
-use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidKind, spawn_asteroid};
+use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidKind, AsteroidShapeId, spawn_asteroid};
 use crate::util::*;
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Game::new(GameInit { asteroid_count: 1, player_lives: 3 }));
+        app.insert_resource(Game::new(GameInit { asteroid_count: 0, player_lives: 3 }));
         app.insert_resource(WorldBoundaries::default());
+        app.add_system(game_keyboard_event_system);
         app.add_system_to_stage(CoreStage::PreUpdate, world_boundaries_update_system);
         app.add_system_to_stage(CoreStage::PreUpdate, game_update_system.after(world_boundaries_update_system));
         app.add_system_to_stage(CoreStage::PostUpdate, game_events_system);
@@ -58,9 +59,10 @@ enum PlayerState {
 }
 
 enum AsteroidSpawnInstruction {
-    FromAnywhere,
-    FromOffScreen,
-    FromDestroyedAsteroid(AsteroidDestroyedEvent)
+    Anywhere,
+    OffScreen,
+    FromDestroyedAsteroid(AsteroidDestroyedEvent),
+    AtPosition(Vec2),
 }
 
 struct ScheduledAsteroidSpawn {
@@ -89,7 +91,7 @@ impl Game {
             init,
         };
         for _ in 0..asteroid_count {
-            game.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::FromAnywhere);
+            game.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::Anywhere);
         }
         game
     }
@@ -123,7 +125,7 @@ impl Game {
 
         // Schedule new chunks to respawn?
         if event.kind == AsteroidKind::Original {
-            self.schedule_asteroids_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS, AsteroidSpawnInstruction::FromOffScreen);
+            self.schedule_asteroids_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS, AsteroidSpawnInstruction::OffScreen);
         }
         // Break apart large chunks?
         if event.size == AsteroidSize::Medium || event.size == AsteroidSize::Large {
@@ -195,41 +197,64 @@ fn game_update_system(
         spawn_player_rocket(&mut commands, &assets.rocket, RocketSpawn::default());
     }
 
-    for sched in game.scheduled_asteroid_spawns.drain_filter(|s| s.spawn_timer.finished()) {
-        match sched.instruction {
-            AsteroidSpawnInstruction::FromAnywhere => {
-                // Spawn on-screen asteroids
-                let position = random_onscreen_position(&mut rng, &world_boundaries);
-                let velocity = random_asteroid_velocity(&mut rng);
-                let size = random_size(&mut rng);
-                let kind = AsteroidKind::Original;
-                let spawn = AsteroidSpawn { size, kind, position, velocity };
-                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, spawn);
-
-            },
-            AsteroidSpawnInstruction::FromOffScreen => {
-                // Spawn off-screen asteroids
-                let position = random_offscreen_position(&mut rng, &world_boundaries);
-                let velocity = random_asteroid_velocity(&mut rng);
-                let size = random_size(&mut rng);
-                let kind = AsteroidKind::Original;
-                let spawn = AsteroidSpawn { size, kind, position, velocity };
-                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, spawn);
-            },
-            AsteroidSpawnInstruction::FromDestroyedAsteroid(ev) => {
-                // Spawn child asteroids
-                let [a, b] = random_chunk_asteroid_state(&mut rng, ev.position, ev.velocity);
-                let size = match ev.size {
-                    AsteroidSize::Small => unreachable!(),
-                    AsteroidSize::Medium => AsteroidSize::Small,
-                    AsteroidSize::Large => AsteroidSize::Medium,
-                };
-                let kind = AsteroidKind::Chunk;
-                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, AsteroidSpawn { size, kind, position: a.0, velocity: a.1 });
-                spawn_asteroid(&mut commands, &assets.asteroid, &mut rng, AsteroidSpawn { size, kind, position: b.0, velocity: b.1 });
-            },
-        };
+    for spawn in game.scheduled_asteroid_spawns.drain_filter(|s| s.spawn_timer.finished()) {
+        handle_asteroid_spawn(&mut commands, &mut rng, &world_boundaries, &assets, spawn);
     }
+}
+
+fn handle_asteroid_spawn(
+    commands: &mut Commands,
+    rng: &mut rand::rngs::ThreadRng,
+    world_boundaries: &Res<WorldBoundaries>,
+    assets: &Res<GameAssets>,
+    sched: ScheduledAsteroidSpawn
+) {
+    match sched.instruction {
+        AsteroidSpawnInstruction::Anywhere => {
+            // Spawn on-screen asteroids
+            let position = random_onscreen_position(rng, world_boundaries);
+            let velocity = random_asteroid_velocity(rng);
+            let rotation = random_asteroid_rotation(rng);
+            let size = random_asteroid_size(rng);
+            let shape = random_asteroid_shape(rng);
+            let kind = AsteroidKind::Original;
+            let spawn = AsteroidSpawn { size, kind, shape, position, velocity, rotation };
+            spawn_asteroid(commands, &assets.asteroid, spawn);
+
+        },
+        AsteroidSpawnInstruction::OffScreen => {
+            // Spawn off-screen asteroids
+            let position = random_offscreen_position(rng, world_boundaries);
+            let velocity = random_asteroid_velocity(rng);
+            let rotation = random_asteroid_rotation(rng);
+            let size = random_asteroid_size(rng);
+            let shape = random_asteroid_shape(rng);
+            let kind = AsteroidKind::Original;
+            let spawn = AsteroidSpawn { size, kind, shape, position, velocity, rotation };
+            spawn_asteroid(commands, &assets.asteroid, spawn);
+        },
+        AsteroidSpawnInstruction::FromDestroyedAsteroid(ev) => {
+            // Spawn child asteroids
+            let [a, b] = random_chunk_asteroid_state(rng, ev.position, ev.velocity);
+            let size = match ev.size {
+                AsteroidSize::Small => unreachable!(),
+                AsteroidSize::Medium => AsteroidSize::Small,
+                AsteroidSize::Large => AsteroidSize::Medium,
+            };
+            let kind = AsteroidKind::Chunk;
+            spawn_asteroid(commands, &assets.asteroid, AsteroidSpawn { size, kind, position: a.0, velocity: a.1, rotation: a.2, shape: a.3 });
+            spawn_asteroid(commands, &assets.asteroid, AsteroidSpawn { size, kind, position: b.0, velocity: b.1, rotation: b.2, shape: b.3 });
+        },
+        AsteroidSpawnInstruction::AtPosition(position) => {
+            let velocity = Vec2::ZERO; // random_asteroid_velocity(rng);
+            let rotation = 0.0;
+            let size = AsteroidSize::Large;
+            let shape = AsteroidShapeId::A;
+            let kind = AsteroidKind::Chunk;
+            let spawn = AsteroidSpawn { size, kind, shape, position, velocity, rotation };
+            spawn_asteroid(commands, &assets.asteroid, spawn);
+        },
+    };
 }
 
 static CHILD_ASTEROID_SPAWN_DISTANCE: f32 = 2.0;
@@ -237,7 +262,7 @@ static CHILD_ASTEROID_MIN_ADD_SPEED: f32 = 5.0;
 static CHILD_ASTEROID_MAX_ADD_SPEED: f32 = 15.0;
 static CHUNK_ASTEROID_VELOCITY_REDUCTION: f32 = 0.8;
 
-pub fn random_chunk_asteroid_state(rng: &mut rand::rngs::ThreadRng, position: Vec2, velocity: Vec2) -> [(Vec2, Vec2); 2] {
+pub fn random_chunk_asteroid_state(rng: &mut rand::rngs::ThreadRng, position: Vec2, velocity: Vec2) -> [(Vec2, Vec2, f32, AsteroidShapeId); 2] {
 
     // Generate some random position and velocity for these two asteroids
     let chunk_direction = rng.random_unit_vec2();
@@ -249,14 +274,26 @@ pub fn random_chunk_asteroid_state(rng: &mut rand::rngs::ThreadRng, position: Ve
     let v1 = velocity * CHUNK_ASTEROID_VELOCITY_REDUCTION + chunk_direction * chunk_velocity;
     let v2 = velocity * CHUNK_ASTEROID_VELOCITY_REDUCTION + -chunk_direction * chunk_velocity;
     
-    [(p1, v1), (p2, v2)]
+    let r1 = random_asteroid_rotation(rng);
+    let r2 = random_asteroid_rotation(rng);
+
+    let s1 = random_asteroid_shape(rng);
+    let s2 = random_asteroid_shape(rng);
+    
+    [(p1, v1, r1, s1), (p2, v2, r2, s2)]
 }
 
 static ASTEROID_MAX_SPEED: f32 = 50.0;
 static ASTEROID_MIN_SPEED: f32 = 5.0;
+static ASTEROID_MAX_SPIN_RATE: f32 = 0.4;
+static ASTEROID_MIN_SPIN_RATE: f32 = 0.05;
 
 fn random_asteroid_velocity(rng: &mut rand::rngs::ThreadRng) -> Vec2 {
     ASTEROID_MIN_SPEED + rng.random_unit_vec2() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED)
+}
+
+fn random_asteroid_rotation(rng: &mut rand::rngs::ThreadRng) -> f32 {
+    ASTEROID_MIN_SPIN_RATE + rng.random_f32() * (ASTEROID_MAX_SPIN_RATE - ASTEROID_MIN_SPIN_RATE)
 }
 
 fn get_world_boundary_lines(world_boundaries: &WorldBoundaries) -> [Line; 4] {
@@ -288,11 +325,26 @@ fn random_onscreen_position(rng: &mut rand::rngs::ThreadRng, world_boundaries: &
     rng.random_unit_vec2() * (Vec2::new(world_boundaries.right, world_boundaries.top) * 2.0)
 }
 
-fn random_size(rng: &mut rand::rngs::ThreadRng) -> AsteroidSize {
-    *rng.random_choice(&[
-        AsteroidSize::Large,
-        AsteroidSize::Medium,
-        AsteroidSize::Small,
-    ])
-    .unwrap()
+fn random_asteroid_size(rng: &mut rand::rngs::ThreadRng) -> AsteroidSize {
+    *rng.random_choice(&AsteroidSize::VALUES).unwrap()
+}
+
+fn random_asteroid_shape(rng: &mut rand::rngs::ThreadRng) -> AsteroidShapeId {
+    *rng.random_choice(&AsteroidShapeId::VALUES).unwrap()
+}
+
+// Keyboard handlers
+
+fn game_keyboard_event_system(
+    kb: Res<Input<KeyCode>>,
+    mut game: ResMut<Game>
+) {
+    // DEBUG: Reset the game state
+    if kb.just_released(KeyCode::R) {
+        game.reset();
+    }
+
+    if kb.just_released(KeyCode::A) {
+        game.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::AtPosition(Vec2::new(0., 20.)));
+    }
 }
