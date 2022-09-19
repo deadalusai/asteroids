@@ -74,7 +74,7 @@ pub struct SpawnExplosion {
     pub shape_scale: f32,
     pub position: Vec2,
     pub velocity: Vec2,
-    pub heading_angle_rads: f32,
+    pub heading_angle: f32,
     pub rotational_velocity: f32,
     pub despawn_after_secs: f32,
 }
@@ -95,12 +95,12 @@ pub fn spawn_explosion(
 
     let parts = assets.explosion_parts.get(&spawn.shape_id).unwrap();
     for part in parts.iter() {
-        let rotation = Vec2::from_angle(-spawn.heading_angle_rads);
+        let rotation = Vec2::from_angle(spawn.heading_angle);
         let position = spawn.position;
         let velocity = spawn.velocity + (part.direction.rotate(rotation) * explosion_part_speed);
         let transform = Transform::default()
             .with_translation(Vec3::new(position.x, position.y, EXPLOSION_Z))
-            .with_rotation(heading_angle_to_transform_rotation(spawn.heading_angle_rads))
+            .with_rotation(Quat::from_rotation_z(spawn.heading_angle))
             .with_scale(Vec3::splat(spawn.shape_scale));
 
         commands
@@ -112,7 +112,7 @@ pub fn spawn_explosion(
                 position,
                 velocity,
                 acceleration: None,
-                heading_angle: spawn.heading_angle_rads,
+                heading_angle: spawn.heading_angle,
                 rotational_velocity: 0.0, // spawn.rotational_velocity,
                 rotational_acceleration: None,
             })

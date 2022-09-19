@@ -6,7 +6,6 @@ use crate::hit::*;
 use crate::movable::*;
 use crate::collidable::*;
 use crate::svg::simple_svg_to_path;
-use crate::util::*;
 
 // Bullets
 
@@ -39,7 +38,7 @@ pub struct BulletAssets {
 pub fn create_bullet_assets() -> BulletAssets {
     // See: https://yqnn.github.io/svg-path-editor/
     let bullet_dimension = 2.0;
-    let bullet_path = "M 0 1 L 0 -1";
+    let bullet_path = "M 1 0 L -1 0";
 
     BulletAssets {
         bullet_dimension,
@@ -80,7 +79,7 @@ pub fn spawn_bullet(
     // Transform
     let transform = Transform::default()
         .with_translation(Vec3::new(spawn.position.x, spawn.position.y, BULLET_Z))
-        .with_rotation(heading_angle_to_transform_rotation(spawn.heading_angle));
+        .with_rotation(Quat::from_rotation_z(spawn.heading_angle));
 
     // collision detection
     let collider = Collider::circle(spawn.position.into(), assets.bullet_dimension / 2.);

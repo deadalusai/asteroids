@@ -58,8 +58,8 @@ pub struct RocketAssets {
 pub fn create_roket_assets() -> RocketAssets {
     // See: https://yqnn.github.io/svg-path-editor/
     let rocket_dimension = (4.0, 6.0);
-    let rocket_path = "M 0 -3 L -2 2 M -1.6 1 L 1.6 1 M 0 -3 L 2 2";
-    let exhaust_path = "M -1 1 L 0 3 L 1 1";
+    let rocket_path = "M 3 0 L -2 -2 M -1 -1.6 L -1 1.6 M 3 0 L -2 2";
+    let exhaust_path = "M -1 1 L -3 0 L -1 -1";
 
     RocketAssets {
         rocket_dimension,
@@ -102,8 +102,8 @@ fn player_keyboard_event_system(
 
         // Update rotational acceleration
         movable.rotational_acceleration = match (turning_left, turning_right) {
-            (true, false) => Some(Acceleration::new(-ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),
-            (false, true) => Some(Acceleration::new(ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),
+            (true, false) => Some(Acceleration::new(ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),
+            (false, true) => Some(Acceleration::new(-ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),
             // Apply "turn drag"
             _ if movable.rotational_velocity > 0. => Some(Acceleration::new(-ROCKET_RATE_OF_TURN_DRAG).with_limit(AcceleratingTo::Zero)),
             _ if movable.rotational_velocity < 0. => Some(Acceleration::new(ROCKET_RATE_OF_TURN_DRAG).with_limit(AcceleratingTo::Zero)),
@@ -158,6 +158,8 @@ pub fn spawn_player_rocket(
     let velocity = spawn.velocity;
     let (_, rocket_shape_height) = assets.rocket_dimension;
 
+    let initial_heading_angle = std::f32::consts::PI / 2.0; // straight up
+
     // Rocket
     let rocket_color = Color::rgba(1., 1., 1., 1.);
     let rocket_draw_mode = DrawMode::Stroke(StrokeMode::new(rocket_color, LINE_WIDTH));
@@ -187,7 +189,7 @@ pub fn spawn_player_rocket(
             position,
             velocity,
             acceleration: None,
-            heading_angle: 0.,
+            heading_angle: initial_heading_angle,
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
@@ -260,7 +262,7 @@ fn player_hit_system(
                 shape_scale: 1.0,
                 position: movable.position,
                 velocity: movable.velocity,
-                heading_angle_rads: movable.heading_angle,
+                heading_angle: movable.heading_angle,
                 rotational_velocity: movable.rotational_velocity,
                 despawn_after_secs: PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS,
             });

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::WorldBoundaries;
-use crate::{util::*, SystemLabel};
+use crate::SystemLabel;
 
 // Component for entities which are moving (basically everything)
 
@@ -60,8 +60,8 @@ pub struct Movable {
     pub velocity: Vec2,
     /// current acceleration (per second per second - a vector representing the current acceleration)
     pub acceleration: Option<Acceleration<Vec2>>,
-    /// heading (rads - the direction the entity is facing)
-    /// 0 = North, 1/2 PI = East, PI = South, 2 PI = West
+    /// heading angle in rads (the direction the entity is facing)
+    /// 0 = East, PI/2 = North, PI = West, 3(PI/2) = South
     pub heading_angle: f32,
     /// rotational velocity (rads/sec - the speed with which the entity is rotating)
     pub rotational_velocity: f32,
@@ -71,7 +71,7 @@ pub struct Movable {
 
 impl Movable {
     pub fn heading_normal(&self) -> Vec2 {
-        self.heading_angle.sin_cos().into()
+        Vec2::from_angle(self.heading_angle)
     }
 }
 
@@ -150,7 +150,7 @@ fn movable_update_transform_system(mut query: Query<(&Movable, &mut Transform)>)
     for (movable, mut transform) in query.iter_mut() {
         transform.translation.x = movable.position.x;
         transform.translation.y = movable.position.y;
-        transform.rotation = heading_angle_to_transform_rotation(movable.heading_angle);
+        transform.rotation = Quat::from_rotation_z(movable.heading_angle);
     }
 }
 

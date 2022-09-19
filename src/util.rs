@@ -1,4 +1,4 @@
-use bevy::prelude::{Color, Vec2, Quat};
+use bevy::prelude::{Color, Vec2};
 use bevy::utils::HashSet;
 use bevy_prototype_lyon::prelude::DrawMode;
 
@@ -58,12 +58,6 @@ pub fn distinct_by<T, F, V>(iterator: impl Iterator<Item=T>, selector: F) -> imp
 {
     let mut seen = HashSet::new();
     iterator.filter(move |v| seen.insert(selector(v)))
-}
-
-// Angle / Quaternion conversion
-
-pub fn heading_angle_to_transform_rotation(heading_angle: f32) -> Quat {
-    Quat::from_rotation_z(-heading_angle)
 }
 
 // Lines and ray utilities

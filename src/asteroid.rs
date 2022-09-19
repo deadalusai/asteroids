@@ -204,7 +204,7 @@ fn asteroid_hit_system(
                 shape_scale: asteroid_scale(asteroid.size),
                 position: movable.position,
                 velocity: movable.velocity,
-                heading_angle_rads: movable.heading_angle,
+                heading_angle: movable.heading_angle,
                 rotational_velocity: movable.rotational_velocity,
                 despawn_after_secs: ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS,
             });
