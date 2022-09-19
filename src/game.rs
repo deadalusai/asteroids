@@ -1,20 +1,22 @@
 use bevy::prelude::*;
+use bevy::render::render_resource::encase::rts_array::Length;
 use rand::thread_rng;
 use crate::assets::GameAssets;
 use crate::player::{PlayerRocketDestroyedEvent, RocketSpawn, spawn_player_rocket};
-use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidKind, AsteroidShapeId, spawn_asteroid};
+use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidKind, AsteroidShapeId, spawn_asteroid, Asteroid};
 use crate::util::*;
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Game::new(GameInit { asteroid_count: 0, player_lives: 3 }));
+        app.insert_resource(Game::new(GameInit { asteroid_count: 8, player_lives: 3 }));
         app.insert_resource(WorldBoundaries::default());
         app.add_system(game_keyboard_event_system);
         app.add_system_to_stage(CoreStage::PreUpdate, world_boundaries_update_system);
-        app.add_system_to_stage(CoreStage::PreUpdate, game_update_system.after(world_boundaries_update_system));
+        app.add_system_to_stage(CoreStage::PreUpdate, game_effects_system.after(world_boundaries_update_system));
         app.add_system_to_stage(CoreStage::PostUpdate, game_events_system);
+        app.add_system_to_stage(CoreStage::PostUpdate, game_update_system.after(game_events_system));
     }
 }
 
@@ -51,7 +53,7 @@ pub struct GameInit {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-enum PlayerState {
+pub enum PlayerState {
     Start,
     Ready,
     Respawn,
@@ -65,7 +67,7 @@ enum AsteroidSpawnInstruction {
     AtPosition(Vec2),
 }
 
-struct ScheduledAsteroidSpawn {
+pub struct ScheduledAsteroidSpawn {
     spawn_timer: Timer,
     instruction: AsteroidSpawnInstruction
 }
@@ -73,9 +75,10 @@ struct ScheduledAsteroidSpawn {
 pub struct Game {
     pub player_lives_remaining: u32,
     pub player_points: u32,
-    player_state: PlayerState,
+    pub debug_asteroid_count_on_screen: u32,
+    pub scheduled_asteroid_spawns: Vec<ScheduledAsteroidSpawn>,
+    pub player_state: PlayerState,
     player_spawn_timer: Timer,
-    scheduled_asteroid_spawns: Vec<ScheduledAsteroidSpawn>,
     init: GameInit,
 }
 
@@ -88,10 +91,11 @@ impl Game {
             player_state: PlayerState::Start,
             player_spawn_timer: Timer::from_seconds(GAME_PLAYER_RESPAWN_TIME_SECS, false),
             scheduled_asteroid_spawns: Vec::new(),
+            debug_asteroid_count_on_screen: 0,
             init,
         };
         for _ in 0..asteroid_count {
-            game.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::Anywhere);
+            game.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::Anywhere);
         }
         game
     }
@@ -125,15 +129,27 @@ impl Game {
 
         // Schedule new chunks to respawn?
         if event.kind == AsteroidKind::Original {
-            self.schedule_asteroids_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS, AsteroidSpawnInstruction::OffScreen);
+            self.schedule_asteroid_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS, AsteroidSpawnInstruction::OffScreen);
         }
         // Break apart large chunks?
         if event.size == AsteroidSize::Medium || event.size == AsteroidSize::Large {
-            self.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::FromDestroyedAsteroid(event));
+            self.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::FromDestroyedAsteroid(event));
         }
     }
 
-    fn schedule_asteroids_to_spawn(&mut self, time_secs: f32, instruction: AsteroidSpawnInstruction) {
+    fn on_asteroid_count_update(&mut self, current_asteroid_count: u32) {
+        self.debug_asteroid_count_on_screen = current_asteroid_count;
+        // Schedule asteroids to "refill" the configured number of asteroids
+        let pending_asteroid_count = self.scheduled_asteroid_spawns.length() as i32;
+        let missing_asteroid_count = self.init.asteroid_count as i32 - current_asteroid_count as i32 - pending_asteroid_count;
+        if missing_asteroid_count > 0 {
+            for _ in 0..missing_asteroid_count {
+                self.schedule_asteroid_to_spawn(GAME_ASTEROID_SPAWN_TIME_SECS, AsteroidSpawnInstruction::OffScreen);
+            }
+        }
+    }
+
+    fn schedule_asteroid_to_spawn(&mut self, time_secs: f32, instruction: AsteroidSpawnInstruction) {
         self.scheduled_asteroid_spawns.push(ScheduledAsteroidSpawn {
             spawn_timer: Timer::from_seconds(time_secs, false),
             instruction
@@ -170,7 +186,7 @@ fn get_points_for_asteroid(size: AsteroidSize) -> u32 {
 fn game_events_system(
     mut game: ResMut<Game>,
     mut rocket_destructions: EventReader<PlayerRocketDestroyedEvent>,
-    mut asteroid_destructions: EventReader<AsteroidDestroyedEvent>,
+    mut asteroid_destructions: EventReader<AsteroidDestroyedEvent>
 ) {
     if rocket_destructions.iter().next().is_some() {
         game.on_rocket_destroyed();
@@ -182,6 +198,15 @@ fn game_events_system(
 }
 
 fn game_update_system(
+    mut game: ResMut<Game>,
+    asteroids: Query<&Asteroid>
+) {
+    let asteroid_count = asteroids.iter().count();
+    game.on_asteroid_count_update(asteroid_count as u32);
+}
+
+// Apply game effects to the world
+fn game_effects_system(
     mut commands: Commands,
     mut game: ResMut<Game>,
     world_boundaries: Res<WorldBoundaries>,
@@ -345,6 +370,6 @@ fn game_keyboard_event_system(
     }
 
     if kb.just_released(KeyCode::A) {
-        game.schedule_asteroids_to_spawn(0.0, AsteroidSpawnInstruction::AtPosition(Vec2::new(0., 20.)));
+        game.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::AtPosition(Vec2::new(0., 20.)));
     }
 }
