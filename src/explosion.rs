@@ -40,8 +40,8 @@ pub fn create_explosion_assets() -> ExplosionAssets {
     let explosion_part_directions_and_shapes = vec![
         // id, diameter, path
         // See: https://yqnn.github.io/svg-path-editor/
-        (RocketDebris, Vec2::new(1., 1.), "M 0 -3 L 2 2 M 0 -3 L -0.8 -2.2 M 0.5 0.8 L 1.6 1"),
-        (RocketDebris, Vec2::new(-1., -1.), "M -0.2 -1.8 L -2 2 M -1.53 1 L 0.4 1"),
+        (RocketDebris, Vec2::new(1., -1.), "M 3 0 L 1.6 -0.8 M 3 0 L -2 2 M -1 1.6 L -0.9 0.6"),
+        (RocketDebris, Vec2::new(-1., 1.), "M -2 -2 L 1.6 -0.5 M -1 -1.6 L -1 0.6"),
         (AsteroidDebris, Vec2::new(-1., 1.), "M -2 -5 L -5 -2 L -5 0 L -2 0"),
         (AsteroidDebris, Vec2::new(1., 1.), "M 2 2 L 5 0 L 4 -2 L 1 -5"),
         (AsteroidDebris, Vec2::new(0., -1.), "M -2 0 L -5 2 L -2 5 L 3 4 "),
