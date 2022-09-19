@@ -20,35 +20,40 @@ impl Plugin for ExplosionPlugin {
 // Setup
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ExplosionAssetId {
-    RocketDebrisA,
-    RocketDebrisB,
-    AsteroidDebrisA,
-    AsteroidDebrisB,
-    AsteroidDebrisC,
+pub enum ExplosionShapeId {
+    RocketDebris,
+    AsteroidDebris,
+}
+
+pub struct ExplosionPart {
+    direction: Vec2,
+    shape: Path,
 }
 
 pub struct ExplosionAssets {
-    explosion_part_shapes: HashMap<ExplosionAssetId, Path>,
+    explosion_parts: HashMap<ExplosionShapeId, Vec<ExplosionPart>>,
 }
 
 pub fn create_explosion_assets() -> ExplosionAssets {
-    use ExplosionAssetId::*;
+    use ExplosionShapeId::*;
     // See: https://yqnn.github.io/svg-path-editor/
-    let explosion_part_shapes = vec![
+    let explosion_part_directions_and_shapes = vec![
         // id, diameter, path
         // See: https://yqnn.github.io/svg-path-editor/
-        (RocketDebrisA, "M 0 -3 L 2 2 M 0 -3 L -0.8 -2.2 M 0.5 0.8 L 1.6 1"),
-        (RocketDebrisB, "M -0.2 -1.8 L -2 2 M -1.53 1 L 0.4 1"),
-        (AsteroidDebrisA, "M -2 -5 L -5 -2 L -5 0 L -2 0"),
-        (AsteroidDebrisB, "M 2 2 L 5 0 L 4 -2 L 1 -5"),
-        (AsteroidDebrisC, "M -2 0 L -5 2 L -2 5 L 3 4 "),
+        (RocketDebris, Vec2::new(1., 1.), "M 0 -3 L 2 2 M 0 -3 L -0.8 -2.2 M 0.5 0.8 L 1.6 1"),
+        (RocketDebris, Vec2::new(-1., -1.), "M -0.2 -1.8 L -2 2 M -1.53 1 L 0.4 1"),
+        (AsteroidDebris, Vec2::new(-1., 1.), "M -2 -5 L -5 -2 L -5 0 L -2 0"),
+        (AsteroidDebris, Vec2::new(1., 1.), "M 2 2 L 5 0 L 4 -2 L 1 -5"),
+        (AsteroidDebris, Vec2::new(0., -1.), "M -2 0 L -5 2 L -2 5 L 3 4 "),
     ];
-    let explosion_part_shapes = explosion_part_shapes.into_iter()
-        .map(|(id, svg)| (id, simple_svg_to_path(svg)))
-        .collect();
-
-    ExplosionAssets { explosion_part_shapes }
+    let mut explosion_parts = HashMap::new();
+    for (explosion_id, direction, svg) in explosion_part_directions_and_shapes.into_iter() {
+        let shape = simple_svg_to_path(svg);
+        explosion_parts
+            .entry(explosion_id).or_insert(Vec::new())
+            .push(ExplosionPart { direction, shape });
+    }
+    ExplosionAssets { explosion_parts }
 }
 
 // Entity
@@ -65,34 +70,38 @@ pub struct ExplosionCollidable;
 // Spawning
 
 pub struct SpawnExplosion {
-    pub shape_id: ExplosionAssetId,
+    pub shape_id: ExplosionShapeId,
     pub shape_scale: f32,
     pub position: Vec2,
     pub velocity: Vec2,
-    pub heading_angle: f32,
+    pub heading_angle_rads: f32,
     pub rotational_velocity: f32,
     pub despawn_after_secs: f32,
 }
 
 const LINE_WIDTH: f32 = 0.2;
+const EXPLOSION_PART_MIN_ADD_SPEED: f32 = 5.0;
+const EXPLOSION_PART_MAX_ADD_SPEED: f32 = 15.0;
 
-pub fn spawn_explosions(
+pub fn spawn_explosion(
     commands: &mut Commands,
+    rng: &mut rand::rngs::ThreadRng,
     assets: &ExplosionAssets,
-    spawns: &[SpawnExplosion]
+    spawn: SpawnExplosion
 ) {
-    for spawn in spawns {
+    let explosion_color = Color::rgba(0.8, 0.8, 0.8, 1.0);
+    let explosion_draw_mode = DrawMode::Stroke(StrokeMode::new(explosion_color, LINE_WIDTH / spawn.shape_scale));
+    let explosion_part_speed = EXPLOSION_PART_MIN_ADD_SPEED + rng.random_f32() * (EXPLOSION_PART_MAX_ADD_SPEED - EXPLOSION_PART_MIN_ADD_SPEED);
 
-        let explosion_color = Color::rgba(0.8, 0.8, 0.8, 1.0);
-        let explosion_draw_mode = DrawMode::Stroke(StrokeMode::new(explosion_color, LINE_WIDTH / spawn.shape_scale));
-    
-        // Transform
+    let parts = assets.explosion_parts.get(&spawn.shape_id).unwrap();
+    for part in parts.iter() {
+        let rotation = Vec2::from_angle(-spawn.heading_angle_rads);
+        let position = spawn.position;
+        let velocity = spawn.velocity + (part.direction.rotate(rotation) * explosion_part_speed);
         let transform = Transform::default()
-            .with_translation(Vec3::new(spawn.position.x, spawn.position.y, EXPLOSION_Z))
-            .with_rotation(heading_angle_to_transform_rotation(spawn.heading_angle))
+            .with_translation(Vec3::new(position.x, position.y, EXPLOSION_Z))
+            .with_rotation(heading_angle_to_transform_rotation(spawn.heading_angle_rads))
             .with_scale(Vec3::splat(spawn.shape_scale));
-
-        let shape = assets.explosion_part_shapes.get(&spawn.shape_id).unwrap();
 
         commands
             .spawn()
@@ -100,18 +109,18 @@ pub fn spawn_explosions(
                 despawn_timer: Timer::from_seconds(spawn.despawn_after_secs, false),
             })
             .insert(Movable {
-                position: spawn.position,
-                velocity: spawn.velocity,
+                position,
+                velocity,
                 acceleration: None,
-                heading_angle: spawn.heading_angle,
-                rotational_velocity: spawn.rotational_velocity,
+                heading_angle: spawn.heading_angle_rads,
+                rotational_velocity: 0.0, // spawn.rotational_velocity,
                 rotational_acceleration: None,
             })
             .insert(MovableTorusConstraint)
             // Rendering
             .insert_bundle(GeometryBuilder::build_as(
-                shape,
-                explosion_draw_mode,
+                &part.shape,
+                explosion_draw_mode.clone(),
                 transform
             ));
     }

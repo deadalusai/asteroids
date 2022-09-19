@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::game::WorldBoundaries;
+use crate::WorldBoundaries;
 use crate::{util::*, SystemLabel};
 
 // Component for entities which are moving (basically everything)

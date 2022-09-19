@@ -7,7 +7,7 @@ use crate::asteroid::AsteroidCollidable;
 use crate::hit::{HitEvent, distinct_hit_events};
 use crate::movable::{Movable, MovableTorusConstraint, Acceleration, AcceleratingTo};
 use crate::collidable::{Collidable, Collider};
-use crate::explosion::{ExplosionAssetId, SpawnExplosion, spawn_explosions};
+use crate::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
 use crate::bullet::{BulletController};
 use crate::svg::simple_svg_to_path;
 use crate::util::*;
@@ -240,6 +240,8 @@ fn exhaust_opacity_over_t(t_secs: f32) -> f32 {
 
 // Destruction system
 
+static PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS: f32 = 3.0;
+
 fn player_hit_system(
     mut commands: Commands,
     mut hit_events: EventReader<HitEvent>,
@@ -253,35 +255,17 @@ fn player_hit_system(
             // Despawn the entity
             commands.entity(entity).despawn_recursive();
             // Start the explosion
-            spawn_explosions(&mut commands, &assets.explosion, &[
-                make_explosion_spawn(&mut rng, movable, ExplosionAssetId::RocketDebrisA),
-                make_explosion_spawn(&mut rng, movable, ExplosionAssetId::RocketDebrisB),
-            ]);
+            spawn_explosion(&mut commands, &mut rng, &assets.explosion, SpawnExplosion {
+                shape_id: ExplosionShapeId::RocketDebris,
+                shape_scale: 1.0,
+                position: movable.position,
+                velocity: movable.velocity,
+                heading_angle_rads: movable.heading_angle,
+                rotational_velocity: movable.rotational_velocity,
+                despawn_after_secs: PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS,
+            });
             // Send events
             rocket_destroyed.send(PlayerRocketDestroyedEvent);
         }
-    }
-}
-
-static PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS: f32 = 3.0;
-static PLAYER_ROCKET_EXPLOSION_MAX_ADD_SPEED: f32 = 100.0;
-static PLAYER_ROCKET_EXPLOSION_MAX_ADD_ROT_SPEED: f32 = 0.5;
-
-fn make_explosion_spawn(
-    rng: &mut rand::rngs::ThreadRng,
-    movable: &Movable,
-    mesh_id: ExplosionAssetId
-) -> SpawnExplosion {
-    // Add some random spin to the individual parts
-    let add_velocity = rng.random_unit_vec2() * rng.random_f32() * PLAYER_ROCKET_EXPLOSION_MAX_ADD_SPEED;
-    let add_rot_velocity = (rng.random_f32() - 0.5) * 2.0 * PLAYER_ROCKET_EXPLOSION_MAX_ADD_ROT_SPEED;
-    SpawnExplosion {
-        shape_id: mesh_id,
-        shape_scale: 1.0,
-        position: movable.position,
-        velocity: movable.velocity + add_velocity,
-        heading_angle: movable.heading_angle,
-        rotational_velocity: movable.rotational_velocity + add_rot_velocity,
-        despawn_after_secs: PLAYER_ROCKET_EXPLOSION_DESPAWN_AFTER_SECS,
     }
 }

@@ -8,9 +8,8 @@ use crate::bullet::BulletCollidable;
 use crate::hit::{HitEvent, distinct_hit_events};
 use crate::movable::{Movable, MovableTorusConstraint};
 use crate::collidable::{Collidable, Collider};
-use crate::explosion::{ExplosionAssetId, SpawnExplosion, spawn_explosions};
+use crate::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
 use crate::svg::simple_svg_to_path;
-use crate::util::*;
 
 pub struct AsteroidPlugin;
 
@@ -185,6 +184,8 @@ fn  asteroid_collision_system(
 
 // Hit handling system
 
+const ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS: f32 = 0.8;
+
 fn asteroid_hit_system(
     mut commands: Commands,
     mut hit_events: EventReader<HitEvent>,
@@ -198,15 +199,15 @@ fn asteroid_hit_system(
             // Despawn the entity
             commands.entity(entity).despawn();
             // Start the explosion
-            spawn_explosions(
-                &mut commands,
-                &assets.explosion,
-                &[
-                    make_explosion_spawn(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisA),
-                    make_explosion_spawn(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisB),
-                    make_explosion_spawn(&mut rng, asteroid, movable, ExplosionAssetId::AsteroidDebrisC),
-                ]
-            );
+            spawn_explosion(&mut commands, &mut rng, &assets.explosion, SpawnExplosion {
+                shape_id: ExplosionShapeId::AsteroidDebris,
+                shape_scale: asteroid_scale(asteroid.size),
+                position: movable.position,
+                velocity: movable.velocity,
+                heading_angle_rads: movable.heading_angle,
+                rotational_velocity: movable.rotational_velocity,
+                despawn_after_secs: ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS,
+            });
             // Send events
             asteroid_destroyed.send(AsteroidDestroyedEvent {
                 size: asteroid.size,
@@ -215,29 +216,5 @@ fn asteroid_hit_system(
                 velocity: movable.velocity
             });
         }
-    }
-}
-
-static ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS: f32 = 0.8;
-static ASTEROID_EXPLOSION_MAX_ADD_SPEED: f32 = 100.0;
-static ASTEROID_EXPLOSION_MAX_ADD_ROT_SPEED: f32 = 0.5;
-
-fn make_explosion_spawn(
-    rng: &mut rand::rngs::ThreadRng,
-    asteroid: &Asteroid,
-    movable: &Movable,
-    mesh_id: ExplosionAssetId
-) -> SpawnExplosion {
-    // Add some random spin to the individual parts
-    let add_velocity = rng.random_unit_vec2() * rng.random_f32() * ASTEROID_EXPLOSION_MAX_ADD_SPEED;
-    let add_rot_velocity = (rng.random_f32() - 0.5) * 2.0 * ASTEROID_EXPLOSION_MAX_ADD_ROT_SPEED;
-    SpawnExplosion {
-        shape_id: mesh_id,
-        shape_scale: asteroid_scale(asteroid.size),
-        position: movable.position,
-        velocity: movable.velocity + add_velocity,
-        heading_angle: movable.heading_angle,
-        rotational_velocity: movable.rotational_velocity + add_rot_velocity,
-        despawn_after_secs: ASTEROID_EXPLOSION_DESPAWN_AFTER_SECS,
     }
 }
