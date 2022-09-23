@@ -157,20 +157,21 @@ fn movable_update_transform_system(mut query: Query<(&Movable, &mut Transform)>)
 // Torus world
 
 #[derive(Component)]
-pub struct MovableTorusConstraint;
-
-static TORUS_GUTTER: f32 = 25.0;
+pub struct MovableTorusConstraint {
+    /// Radius of the circle used to determine if the entity has "left" the screen
+    pub radius: f32,
+}
 
 fn movable_torus_constraint_system(
     world_boundaries: Res<WorldBoundaries>,
-    mut query: Query<&mut Movable, With<MovableTorusConstraint>>
+    mut query: Query<(&MovableTorusConstraint, &mut Movable)>
 ) {
     // NOTE: 0,0 is in the middle of the window.
-    for mut movable in query.iter_mut() {
-        let right = world_boundaries.right + TORUS_GUTTER;
-        let left = world_boundaries.left - TORUS_GUTTER;
-        let top = world_boundaries.top + TORUS_GUTTER;
-        let bottom = world_boundaries.bottom - TORUS_GUTTER;
+    for (torus, mut movable) in query.iter_mut() {
+        let right = world_boundaries.right + torus.radius;
+        let left = world_boundaries.left - torus.radius;
+        let top = world_boundaries.top + torus.radius;
+        let bottom = world_boundaries.bottom - torus.radius;
         // Has this Movable left the screen?
         // Teleport them to the other side of the Torus
         if movable.position.x > right {

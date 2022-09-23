@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_prototype_lyon::prelude::*;
-use crate::movable::{Movable, MovableTorusConstraint};
+use crate::movable::Movable;
 use crate::svg::simple_svg_to_path;
 use crate::util::*;
 
@@ -116,7 +116,6 @@ pub fn spawn_explosion(
                 rotational_velocity: 0.0, // spawn.rotational_velocity,
                 rotational_acceleration: None,
             })
-            .insert(MovableTorusConstraint)
             // Rendering
             .insert_bundle(GeometryBuilder::build_as(
                 &part.shape,

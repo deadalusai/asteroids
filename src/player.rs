@@ -22,7 +22,7 @@ static ROCKET_MAX_SPEED: f32 = 200.0;
 static ROCKET_MAX_DRAG_SPEED: f32 = 20.0;
 static ROCKET_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
 static ROCKET_BULLET_SPEED: f32 = 250.0;
-static ROCKET_BULLET_MAX_AGE_SECS: f32 = 2.0;
+static ROCKET_BULLET_MAX_AGE_SECS: f32 = 1.0;
 static ROCKET_FIRE_RATE: f32 = 5.0; // per second
 static ROCKET_Z: f32 = 10.0;
 
@@ -170,17 +170,12 @@ pub fn spawn_player_rocket(
     
     // Transform
     let transform = Transform::from_translation(Vec3::new(position.x, position.y, ROCKET_Z));
-
-    // Bullet controller
-    let b_fire_rate = ROCKET_FIRE_RATE;
-    let b_bullet_speed = ROCKET_BULLET_SPEED;
-    let b_bullet_max_age_secs = ROCKET_BULLET_MAX_AGE_SECS;
-    let b_start_offset = rocket_shape_height / 2.0; // Offset the bullets forward of the rocket
     
     // Collision detection
     // NOTE: Currently using a spherical collision box, shrunk down to fit within the hull
     // TODO(benf): Make a triangular Polygon collision shape
-    let collider = Collider::circle(position.into(), rocket_shape_height / 4.0);
+    let radius = rocket_shape_height / 2.;
+    let collider = Collider::circle(position.into(), radius / 2.);
 
     commands
         .spawn()
@@ -193,8 +188,8 @@ pub fn spawn_player_rocket(
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
-        .insert(MovableTorusConstraint)
-        .insert(BulletController::new(b_fire_rate, b_start_offset, b_bullet_speed, b_bullet_max_age_secs))
+        .insert(MovableTorusConstraint { radius })
+        .insert(BulletController::new(ROCKET_FIRE_RATE, radius, ROCKET_BULLET_SPEED, ROCKET_BULLET_MAX_AGE_SECS))
         // Collision detection
         .insert(AsteroidCollidable)
         .insert(Collidable { collider })

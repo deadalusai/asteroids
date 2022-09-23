@@ -131,7 +131,8 @@ pub fn spawn_asteroid(
         .with_scale(Vec3::splat(scale));
 
     // Collision detection
-    let collider = Collider::circle(position.into(), scale * diameter / 2.);
+    let radius = scale * diameter / 2.;
+    let collider = Collider::circle(position.into(), radius);
 
     commands
         .spawn()
@@ -146,7 +147,7 @@ pub fn spawn_asteroid(
             rotational_velocity: rotation * std::f32::consts::TAU,
             rotational_acceleration: None,
         })
-        .insert(MovableTorusConstraint)
+        .insert(MovableTorusConstraint { radius })
         .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
         // Collision detection
         .insert(Collidable { collider })

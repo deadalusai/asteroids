@@ -82,7 +82,8 @@ pub fn spawn_bullet(
         .with_rotation(Quat::from_rotation_z(spawn.heading_angle));
 
     // collision detection
-    let collider = Collider::circle(spawn.position.into(), assets.bullet_dimension / 2.);
+    let radius = assets.bullet_dimension / 2.;
+    let collider = Collider::circle(spawn.position.into(), radius);
 
     commands
         .spawn()
@@ -97,7 +98,7 @@ pub fn spawn_bullet(
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
-        .insert(MovableTorusConstraint)
+        .insert(MovableTorusConstraint { radius })
         // Rendering
         .insert_bundle(GeometryBuilder::build_as(
             &assets.bullet_shape,
