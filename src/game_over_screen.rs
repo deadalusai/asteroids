@@ -13,6 +13,10 @@ impl Plugin for GameOverScreenPlugin {
                 .with_system(setup_game_over_system)
         );
         app.add_system_set(
+            SystemSet::on_update(AppState::GameOver)
+                .with_system(game_over_update_system)
+        );
+        app.add_system_set(
             SystemSet::on_exit(AppState::GameOver)
                 .with_system(destroy_game_over_system)
         );
@@ -94,5 +98,17 @@ fn destroy_game_over_system(mut commands: Commands, fragments: Query<Entity, Wit
         commands
             .entity(entity)
             .despawn_recursive();
+    }
+}
+
+fn game_over_update_system(
+    kb: Res<Input<KeyCode>>,
+    mut app_state: ResMut<State<AppState>>,
+) {
+    let should_continue =
+        kb.just_pressed(KeyCode::Escape);
+
+    if should_continue {
+        app_state.replace(AppState::Menu).unwrap();
     }
 }
