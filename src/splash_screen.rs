@@ -10,15 +10,15 @@ impl Plugin for SplashScreenPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(AppState::Menu)
-                .with_system(setup_menu_system)
+                .with_system(menu_setup_system)
         );
         app.add_system_set(
             SystemSet::on_exit(AppState::Menu)
-                .with_system(destroy_menu_system)
+                .with_system(menu_cleanup_system)
         );
         app.add_system_set(
             SystemSet::on_update(AppState::Menu)
-                .with_system(update_menu_system)
+                .with_system(menu_update_system)
         );
     }
 }
@@ -34,7 +34,7 @@ const COLOR_NORMAL: Color = Color::rgb(0.15, 0.15, 0.15);
 const COLOR_HOVERED: Color = Color::rgb(0.25, 0.25, 0.25);
 const COLOR_PRESSED: Color = Color::rgb(0.35, 0.75, 0.35);
 
-fn setup_menu_system(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn menu_setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font_light = asset_server.load("fonts/RedHatMono-Light.ttf");
     let font_bold = asset_server.load("fonts/RedHatMono-Bold.ttf");
 
@@ -101,7 +101,7 @@ fn setup_menu_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
 }
 
-fn update_menu_system(
+fn menu_update_system(
     mut state: ResMut<State<AppState>>,
     mut interaction_query: Query<
         (&Interaction, &mut UiColor),
@@ -124,7 +124,7 @@ fn update_menu_system(
     }
 }
 
-fn destroy_menu_system(mut commands: Commands, fragments: Query<Entity, With<MenuRoot>>) {
+fn menu_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<MenuRoot>>) {
     for entity in fragments.iter() {
         commands
             .entity(entity)

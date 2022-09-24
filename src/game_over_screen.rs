@@ -10,7 +10,7 @@ impl Plugin for GameOverScreenPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(AppState::GameOver)
-                .with_system(setup_game_over_system)
+                .with_system(game_over_setup_system)
         );
         app.add_system_set(
             SystemSet::on_update(AppState::GameOver)
@@ -18,7 +18,7 @@ impl Plugin for GameOverScreenPlugin {
         );
         app.add_system_set(
             SystemSet::on_exit(AppState::GameOver)
-                .with_system(destroy_game_over_system)
+                .with_system(game_over_cleanup_system)
         );
     }
 }
@@ -34,7 +34,7 @@ pub struct GameResults {
 #[derive(Component)]
 struct GameOverRoot;
 
-fn setup_game_over_system(
+fn game_over_setup_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     game_results: Res<GameResults>
@@ -92,7 +92,7 @@ fn setup_game_over_system(
         });
 }
 
-fn destroy_game_over_system(mut commands: Commands, fragments: Query<Entity, With<GameOverRoot>>) {
+fn game_over_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<GameOverRoot>>) {
     commands.remove_resource::<GameResults>();
     for entity in fragments.iter() {
         commands

@@ -10,15 +10,15 @@ impl Plugin for PauseScreenPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(AppState::Pause)
-                .with_system(setup_pause_system)
+                .with_system(pause_setup_system)
         );
         app.add_system_set(
             SystemSet::on_exit(AppState::Pause)
-                .with_system(destroy_pause_system)
+                .with_system(pause_cleanup_system)
         );
         app.add_system_set(
             SystemSet::on_update(AppState::Pause)
-                .with_system(keyboard_pause_system)
+                .with_system(pause_keyboard_system)
         );
     }
 }
@@ -28,7 +28,7 @@ impl Plugin for PauseScreenPlugin {
 #[derive(Component)]
 struct PauseRoot;
 
-fn setup_pause_system(
+fn pause_setup_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>
 ) {
@@ -66,7 +66,7 @@ fn setup_pause_system(
         });
 }
 
-fn destroy_pause_system(mut commands: Commands, fragments: Query<Entity, With<PauseRoot>>) {
+fn pause_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<PauseRoot>>) {
     for entity in fragments.iter() {
         commands
             .entity(entity)
@@ -74,7 +74,7 @@ fn destroy_pause_system(mut commands: Commands, fragments: Query<Entity, With<Pa
     }
 }
 
-fn keyboard_pause_system(
+fn pause_keyboard_system(
     mut kb: ResMut<Input<KeyCode>>,
     mut app_state: ResMut<State<AppState>>
 ) {
