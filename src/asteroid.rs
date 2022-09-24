@@ -45,10 +45,10 @@ pub struct AsteroidAssets {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub enum AsteroidShapeId { A, B, C }
+pub enum AsteroidShapeId { A, B, C, D, E }
 
 impl AsteroidShapeId {
-    pub const VALUES: [Self; 3] = [ Self::A, Self::B, Self::C ];
+    pub const VALUES: [Self; 5] = [ Self::A, Self::B, Self::C, Self::D, Self::E ];
 }
 
 pub fn create_asteroid_assets() -> AsteroidAssets {
@@ -57,7 +57,9 @@ pub fn create_asteroid_assets() -> AsteroidAssets {
         // See: https://yqnn.github.io/svg-path-editor/
         (AsteroidShapeId::A, 10.0, "M -2 -5 L -5 -2 L -5 0 L -2 0 L -5 2 L -2 5 L 3 4 L 2 2 L 5 0 L 4 -2 L 1 -5 Z"),
         (AsteroidShapeId::B, 10.0, "M -5 -3 L -5 2 L -3 5 L 2 5 L 5 3 L 4 1 L 6 -2 L 4 -5 L 1 -3 L -2 -6 Z"),
-        (AsteroidShapeId::C, 10.0, "M 4 -3 L 0 -5 L -3 -5 L -2 -2 L -5 -2 L -5 0 L -2 5 L 1 2 L 2 4 L 5 1 L 1 -1 L 5 -2 L 5 -3 Z")
+        (AsteroidShapeId::C, 10.0, "M 4 -3 L 0 -5 L -3 -5 L -2 -2 L -5 -2 L -5 0 L -2 5 L 1 2 L 2 4 L 5 1 L 1 -1 L 5 -2 L 5 -3 Z"),
+        (AsteroidShapeId::D, 10.0, "M 0 -5 L -4 -4 L -5 -1 L -3 0 L -4 2 L -2 4 L 1 4 L 2 5 L 4 4 L 5 1 L 2 0 L 5 -1 L 5 -3 L 4 -5 L 1 -4 L 0 -5"),
+        (AsteroidShapeId::E, 10.0, "M 5 0 L 4 -3 L 2 -4 L 1 -3 L 0 -3 L -2 -4 L -4 -3 L -5 0 L -3 1 L -3 3 L -1 3 L 0 5 L 2 3 L 4 3 L 4 1 L 5 0"),
     ];
     let asteroid_shapes = asteroid_shapes.into_iter()
         .map(|(id, dim, svg)| (id, (dim, simple_svg_to_path(svg))))

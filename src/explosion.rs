@@ -35,16 +35,20 @@ pub struct ExplosionAssets {
 }
 
 pub fn create_explosion_assets() -> ExplosionAssets {
+    fn unit(x: f32, y: f32) -> Vec2 {
+        Vec2::new(x, y).normalize()
+    }
     use ExplosionShapeId::*;
     // See: https://yqnn.github.io/svg-path-editor/
     let explosion_part_directions_and_shapes = vec![
         // id, diameter, path
         // See: https://yqnn.github.io/svg-path-editor/
-        (RocketDebris, Vec2::new(1., -1.), "M 3 0 L 1.6 -0.8 M 3 0 L -2 2 M -1 1.6 L -0.9 0.6"),
-        (RocketDebris, Vec2::new(-1., 1.), "M -2 -2 L 1.6 -0.5 M -1 -1.6 L -1 0.6"),
-        (AsteroidDebris, Vec2::new(-1., 1.), "M -2 -5 L -5 -2 L -5 0 L -2 0"),
-        (AsteroidDebris, Vec2::new(1., 1.), "M 2 2 L 5 0 L 4 -2 L 1 -5"),
-        (AsteroidDebris, Vec2::new(0., -1.), "M -2 0 L -5 2 L -2 5 L 3 4 "),
+        (RocketDebris, unit( 1., -1.), "M 3 0 L 1.6 -0.8 M 3 0 L -2 2 M -1 1.6 L -0.9 0.6"),
+        (RocketDebris, unit(-1.,  1.), "M -2 -2 L 1.6 -0.5 M -1 -1.6 L -1 0.6"),
+        // Debris A
+        (AsteroidDebris, unit(-1.,  1.), "M 1 -5 L -2 -5 L -5 -2 L -5 0 L -3 0"),
+        (AsteroidDebris, unit( 4.,  2.), "M 2 2 L 5 0 L 4 -2 L 1 -5"),
+        (AsteroidDebris, unit(-1., -2.), "M -2 0 L -5 2 L -2 5 L 3 4 L 2 2"),
     ];
     let mut explosion_parts = HashMap::new();
     for (explosion_id, direction, svg) in explosion_part_directions_and_shapes.into_iter() {
@@ -81,8 +85,8 @@ pub struct SpawnExplosion {
 }
 
 const LINE_WIDTH: f32 = 0.2;
-const EXPLOSION_PART_MIN_ADD_SPEED: f32 = 5.0;
-const EXPLOSION_PART_MAX_ADD_SPEED: f32 = 15.0;
+const EXPLOSION_PART_MIN_ADD_SPEED: f32 = 10.0;
+const EXPLOSION_PART_MAX_ADD_SPEED: f32 = 25.0;
 
 pub fn spawn_explosion(
     commands: &mut Commands,

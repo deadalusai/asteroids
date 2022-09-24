@@ -16,7 +16,7 @@ fn parse_svg_instructions(path: &str) -> Result<Vec<Instruction>, BoxError> {
             "M" => Instruction::MoveTo(parse_coordinates(tokens.next(), tokens.next())?),
             "L" => Instruction::LineTo(parse_coordinates(tokens.next(), tokens.next())?),
             "Z" => Instruction::ClosePath,
-            _ => return Err("Unknown instruction".into())
+            ins => return Err(format!("Unknown instruction: {ins}").into())
         });
     }
     Ok(instructions)
