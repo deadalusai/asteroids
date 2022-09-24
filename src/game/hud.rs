@@ -20,10 +20,17 @@ impl Plugin for HeadsUpDisplayPlugin {
                 .with_system(status_text_update_system)
                 .with_system(debug_text_update_system)
         );
+        app.add_system_set(
+            SystemSet::on_exit(AppState::Game)
+                .with_system(destroy_system)
+        );
     }
 }
 
 // HUD
+
+#[derive(Component)]
+struct HudPart;
 
 #[derive(Component)]
 struct StatusText;
@@ -33,70 +40,69 @@ struct DebugText;
 
 fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     
-    let font_dotgothic16 = asset_server.load("fonts/RedHatMono-Light.ttf");
-    
+    let font_light = asset_server.load("fonts/RedHatMono-Light.ttf");
+
     let status_text_bundle =
         TextBundle::from_sections([
             TextSection::new(
                 "POINTS: ",
                 TextStyle {
-                    font: font_dotgothic16.clone(),
+                    font: font_light.clone(),
                     font_size: 30.0,
                     color: Color::WHITE,
                 },
             ),
             TextSection::from_style(TextStyle {
-                font: font_dotgothic16.clone(),
+                font: font_light.clone(),
                 font_size: 30.0,
                 color: Color::GOLD,
             }),
             TextSection::new(
                 " LIVES: ",
                 TextStyle {
-                    font: font_dotgothic16.clone(),
+                    font: font_light.clone(),
                     font_size: 30.0,
                     color: Color::WHITE,
                 },
             ),
             TextSection::from_style(TextStyle {
-                font: font_dotgothic16.clone(),
+                font: font_light.clone(),
                 font_size: 30.0,
                 color: Color::GOLD,
             }),
         ])
         .with_style(Style {
-            align_self: AlignSelf::FlexEnd,
+            position_type: PositionType::Absolute,
             position: UiRect {
-                top: Val::Px(5.0),
+                top: Val::Px(15.0),
                 left: Val::Px(15.0),
                 ..default()
             },
             ..default()
         });
-    
+
     commands
         .spawn()
         .insert(StatusText)
+        .insert(HudPart)
         .insert_bundle(status_text_bundle);
 
-    
     let debug_text_bundle =
         TextBundle::from_sections([
             TextSection::new(
                 "",
                 TextStyle {
-                    font: font_dotgothic16.clone(),
+                    font: font_light.clone(),
                     font_size: 15.0,
                     color: Color::WHITE,
                 },
             ),
         ])
         .with_style(Style {
-            align_self: AlignSelf::FlexEnd,
             position_type: PositionType::Absolute,
             position: UiRect {
-                bottom: Val::Px(5.0),
-                right: Val::Px(10.0),
+                bottom: Val::Px(15.0),
+                right: Val::Px(15.0),
                 ..default()
             },
             ..default()
@@ -105,7 +111,16 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn()
         .insert(DebugText)
+        .insert(HudPart)
         .insert_bundle(debug_text_bundle);
+}
+
+fn destroy_system(mut commands: Commands, query: Query<Entity, With<HudPart>>) {
+    for entity in query.iter() {
+        commands
+            .entity(entity)
+            .despawn_recursive();
+    }
 }
 
 fn status_text_update_system(
