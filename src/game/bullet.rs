@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-use crate::SystemLabel;
-use crate::assets::GameAssets;
-use crate::hit::{HitEvent, distinct_hit_events};
-use crate::movable::{Movable, MovableTorusConstraint};
-use crate::collidable::{Collidable, Collider};
-use crate::invulnerable::{Invulnerable, TestInvulnerable};
-use crate::svg::simple_svg_to_path;
+use crate::AppState;
+use super::FrameStage;
+use super::assets::GameAssets;
+use super::hit::{HitEvent, distinct_hit_events};
+use super::movable::{Movable, MovableTorusConstraint};
+use super::collidable::{Collidable, Collider};
+use super::invulnerable::{Invulnerable, TestInvulnerable};
+use super::svg::simple_svg_to_path;
 
 // Bullets
 
@@ -16,16 +17,28 @@ pub struct BulletPlugin;
 
 impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(
-            bullet_controller_system
-                .after(SystemLabel::Input)
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(
+                    bullet_controller_system
+                        .after(FrameStage::Input)
+                        .after(FrameStage::Movement)
+                )
+                .with_system(
+                    bullet_collision_system
+                        .label(FrameStage::Collision)
+                        .after(FrameStage::Movement)
+                )
+                .with_system(
+                    bullet_despawn_system
+                        .label(FrameStage::CollisionEffect)
+                        .after(FrameStage::Collision)
+                )
         );
-        app.add_system(
-            bullet_collision_system
-                .label(SystemLabel::Collision)
-                .after(SystemLabel::Movement)
+        app.add_system_set(
+            SystemSet::on_exit(AppState::Game)
+                .with_system(destroy_bullets_system)
         );
-        app.add_system_to_stage(CoreStage::PostUpdate, bullet_despawn_system);
     }
 }
 
@@ -44,6 +57,16 @@ pub fn create_bullet_assets() -> BulletAssets {
     BulletAssets {
         bullet_dimension,
         bullet_shape: simple_svg_to_path(bullet_path),
+    }
+}
+
+// Teardown
+
+fn destroy_bullets_system(mut commands: Commands, query: Query<Entity, With<Bullet>>) {
+    for entity in query.iter() {
+        commands
+            .entity(entity)
+            .despawn_recursive();
     }
 }
 

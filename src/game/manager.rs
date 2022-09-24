@@ -1,23 +1,61 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::encase::rts_array::Length;
 use rand::thread_rng;
-use crate::assets::GameAssets;
-use crate::player::{PlayerRocketDestroyedEvent, RocketSpawn, spawn_player_rocket};
-use crate::asteroid::{AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidShapeId, spawn_asteroid, Asteroid};
-use crate::util::*;
+use crate::AppState;
+use super::FrameStage;
+use super::assets::GameAssets;
+use super::player::{PlayerRocketDestroyedEvent, RocketSpawn, spawn_player_rocket};
+use super::asteroid::{Asteroid, AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidShapeId, spawn_asteroid};
+use super::util::*;
 
-pub struct GamePlugin;
+pub struct GameManagerPlugin;
 
-impl Plugin for GamePlugin {
+impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Game::new(GameInit { asteroid_count: 8, player_lives: 3 }));
         app.insert_resource(WorldBoundaries::default());
-        app.add_system(game_keyboard_event_system);
-        app.add_system_to_stage(CoreStage::PreUpdate, world_boundaries_update_system);
-        app.add_system_to_stage(CoreStage::PreUpdate, game_effects_system.after(world_boundaries_update_system));
-        app.add_system_to_stage(CoreStage::PostUpdate, game_events_system);
-        app.add_system_to_stage(CoreStage::PostUpdate, game_update_system.after(game_events_system));
+        app.add_system_set(
+            SystemSet::on_enter(AppState::Game)
+                .with_system(initialise_game_system)
+        );
+        app.add_system_set(
+            SystemSet::on_exit(AppState::Game)
+                .with_system(destroy_game_system)
+        );
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(
+                    world_boundaries_update_system
+                        .label(FrameStage::Start)
+                )
+                .with_system(
+                    game_effects_system
+                        .label(FrameStage::Start)
+                        .after(world_boundaries_update_system)
+                )
+                .with_system(
+                    game_events_system
+                )
+                .with_system(
+                    game_update_system
+                        .after(game_events_system)
+                )
+                .with_system(
+                    game_keyboard_event_system
+                )
+        );
     }
+}
+
+fn initialise_game_system(mut commands: Commands) {
+    let game_init = GameInit {
+        asteroid_count: 8,
+        player_lives: 3,
+    };
+    commands.insert_resource(GameManager::new(game_init));
+}
+
+fn destroy_game_system(mut commands: Commands) {
+    commands.remove_resource::<GameManager>();
 }
 
 // World boundary information
@@ -46,6 +84,7 @@ fn world_boundaries_update_system(
 static GAME_PLAYER_RESPAWN_TIME_SECS: f32 = 1.5;
 static GAME_ASTEROID_SPAWN_TIME_SECS: f32 = 5.0;
 
+#[derive(Clone)]
 pub struct GameInit {
     /// The number of asteroids the game will try to maintain on screen
     pub asteroid_count: u32,
@@ -72,7 +111,7 @@ pub struct ScheduledAsteroidSpawn {
     instruction: AsteroidSpawnInstruction
 }
 
-pub struct Game {
+pub struct GameManager {
     pub player_lives_remaining: u32,
     pub player_points: u32,
     pub debug_asteroid_count_on_screen: u32,
@@ -82,7 +121,7 @@ pub struct Game {
     init: GameInit,
 }
 
-impl Game {
+impl GameManager {
     pub fn new(init: GameInit) -> Self {
         let asteroid_count = init.asteroid_count;
         let mut game = Self {
@@ -173,7 +212,7 @@ fn get_points_for_asteroid(size: AsteroidSize) -> u32 {
 
 // Listen for events and update the game state
 fn game_events_system(
-    mut game: ResMut<Game>,
+    mut game: ResMut<GameManager>,
     mut rocket_destructions: EventReader<PlayerRocketDestroyedEvent>,
     mut asteroid_destructions: EventReader<AsteroidDestroyedEvent>
 ) {
@@ -187,7 +226,7 @@ fn game_events_system(
 }
 
 fn game_update_system(
-    mut game: ResMut<Game>,
+    mut game: ResMut<GameManager>,
     asteroids: Query<&Asteroid>
 ) {
     let asteroid_count = asteroids.iter().count();
@@ -197,7 +236,7 @@ fn game_update_system(
 // Apply game effects to the world
 fn game_effects_system(
     mut commands: Commands,
-    mut game: ResMut<Game>,
+    mut game: ResMut<GameManager>,
     world_boundaries: Res<WorldBoundaries>,
     time: Res<Time>,
     assets: Res<GameAssets>,
@@ -350,7 +389,7 @@ fn random_asteroid_shape(rng: &mut rand::rngs::ThreadRng) -> AsteroidShapeId {
 
 fn game_keyboard_event_system(
     kb: Res<Input<KeyCode>>,
-    mut game: ResMut<Game>
+    mut game: ResMut<GameManager>
 ) {
     if kb.just_released(KeyCode::A) {
         game.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::AtPosition(Vec2::new(0., 20.)));

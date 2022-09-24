@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use crate::movable::*;
+
+use crate::AppState;
+use super::FrameStage;
+use super::movable::*;
 
 // Component for entities which may collide (basically everything)
 
@@ -7,7 +10,13 @@ pub struct CollidablePlugin;
 
 impl Plugin for CollidablePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(CoreStage::PostUpdate, collidable_update_system);
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(collidable_update_system)
+                .after(FrameStage::Movement)
+                .before(FrameStage::Collision)
+        );
+        
     }
 }
 

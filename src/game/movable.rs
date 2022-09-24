@@ -1,6 +1,7 @@
 use bevy::prelude::*;
-use crate::WorldBoundaries;
-use crate::SystemLabel;
+use crate::AppState;
+use super::manager::WorldBoundaries;
+use super::FrameStage;
 
 // Component for entities which are moving (basically everything)
 
@@ -8,20 +9,24 @@ pub struct MovablePlugin;
 
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_stage(CoreStage::Update,
-            movable_system
-                .label(SystemLabel::Movement)
-                .after(SystemLabel::Input)
-        );
-        app.add_system_to_stage(CoreStage::Update,
-            movable_torus_constraint_system
-                .label(SystemLabel::Movement)
-                .after(movable_system)
-        );
-        app.add_system_to_stage(CoreStage::Update,
-            movable_update_transform_system
-                .label(SystemLabel::Movement)
-                .after(movable_torus_constraint_system)
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(
+                    movable_system
+                        .label(FrameStage::Movement)
+                        .after(FrameStage::Input)
+                )
+                .with_system(
+                    movable_torus_constraint_system
+                        .label(FrameStage::Movement)
+                        .after(FrameStage::Start)
+                        .after(movable_system)
+                )
+                .with_system(
+                    movable_update_transform_system
+                        .label(FrameStage::Movement)
+                        .after(movable_torus_constraint_system)
+                )
         );
     }
 }

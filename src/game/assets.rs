@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use crate::explosion;
-use crate::asteroid;
-use crate::player;
-use crate::bullet;
+use super::explosion;
+use super::asteroid;
+use super::player;
+use super::bullet;
 
 pub struct AssetsPlugin;
 

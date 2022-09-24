@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::game::Game;
+use crate::AppState;
+use super::manager::GameManager;
 
 // Plugin
 
@@ -8,9 +9,15 @@ pub struct HeadsUpDisplayPlugin;
 
 impl Plugin for HeadsUpDisplayPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup_system);
-        app.add_system(status_text_update_system);
-        app.add_system(debug_text_update_system);
+        app.add_system_set(
+            SystemSet::on_enter(AppState::Game)
+                .with_system(setup_system)
+        );
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(status_text_update_system)
+                .with_system(debug_text_update_system)
+        );
     }
 }
 
@@ -100,7 +107,7 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn status_text_update_system(
-    game: Res<Game>,
+    game: Res<GameManager>,
     mut status_text: Query<&mut Text, With<StatusText>>
 ) {
     let mut status_text = status_text.get_single_mut().unwrap();
@@ -109,7 +116,7 @@ fn status_text_update_system(
 }
 
 fn debug_text_update_system(
-    game: Res<Game>,
+    game: Res<GameManager>,
     mut debug_text: Query<&mut Text, With<DebugText>>
 ) {
     let mut debug_text = debug_text.get_single_mut().unwrap();
@@ -118,7 +125,7 @@ fn debug_text_update_system(
     write_debug_info_text(&game, debug_s).unwrap();
 }
 
-fn write_debug_info_text(game: &Game, w: &mut impl std::fmt::Write) -> Result<(), std::fmt::Error> {
+fn write_debug_info_text(game: &GameManager, w: &mut impl std::fmt::Write) -> Result<(), std::fmt::Error> {
     writeln!(w, "asteroids on screen: {}", game.debug_asteroid_count_on_screen)?;
     writeln!(w, "asteroids pending spawn: {}", game.scheduled_asteroid_spawns.len())?;
     writeln!(w, "player state: {:?}", game.player_state)?;

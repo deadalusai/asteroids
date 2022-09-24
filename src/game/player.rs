@@ -1,17 +1,18 @@
 use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-use crate::SystemLabel;
-use crate::assets::GameAssets;
-use crate::asteroid::AsteroidCollidable;
-use crate::hit::{HitEvent, distinct_hit_events};
-use crate::movable::{Movable, MovableTorusConstraint, Acceleration, AcceleratingTo};
-use crate::collidable::{Collidable, Collider};
-use crate::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
-use crate::bullet::BulletController;
-use crate::invulnerable::Invulnerable;
-use crate::svg::simple_svg_to_path;
-use crate::util::*;
+use crate::AppState;
+use super::FrameStage;
+use super::assets::GameAssets;
+use super::asteroid::AsteroidCollidable;
+use super::hit::{HitEvent, distinct_hit_events};
+use super::movable::{Movable, MovableTorusConstraint, Acceleration, AcceleratingTo};
+use super::collidable::{Collidable, Collider};
+use super::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
+use super::bullet::BulletController;
+use super::invulnerable::Invulnerable;
+use super::svg::simple_svg_to_path;
+use super::util::*;
 
 // Player's Rocket
 
@@ -32,16 +33,27 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(
-            player_keyboard_event_system
-                .label(SystemLabel::Input)
-        );
-        app.add_system(
-            player_hit_system
-                .after(SystemLabel::Collision)
-        );
-        app.add_system(rocket_exhaust_system);
         app.add_event::<PlayerRocketDestroyedEvent>();
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(
+                    player_keyboard_event_system
+                        .label(FrameStage::Input)
+                )
+                .with_system(
+                    rocket_exhaust_system
+                        .after(player_keyboard_event_system)
+                )
+                .with_system(
+                    player_hit_system
+                        .label(FrameStage::CollisionEffect)
+                        .after(FrameStage::Collision)
+                )
+        );
+        app.add_system_set(
+            SystemSet::on_exit(AppState::Game)
+                .with_system(destroy_player_system)
+        );
     }
 }
 
@@ -67,6 +79,16 @@ pub fn create_roket_assets() -> RocketAssets {
         rocket_dimension,
         rocket_shape: simple_svg_to_path(rocket_path),
         rocket_exhaust_shape: simple_svg_to_path(exhaust_path),
+    }
+}
+
+// Teardown
+
+fn destroy_player_system(mut commands: Commands, query: Query<Entity, With<PlayerRocket>>) {
+    for entity in query.iter() {
+        commands
+            .entity(entity)
+            .despawn_recursive();
     }
 }
 

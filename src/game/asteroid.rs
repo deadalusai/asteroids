@@ -2,30 +2,39 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_prototype_lyon::prelude::*;
 use rand::thread_rng;
-use crate::SystemLabel;
-use crate::assets::GameAssets;
-use crate::bullet::BulletCollidable;
-use crate::hit::{HitEvent, distinct_hit_events};
-use crate::invulnerable::{Invulnerable, TestInvulnerable};
-use crate::movable::{Movable, MovableTorusConstraint};
-use crate::collidable::{Collidable, Collider};
-use crate::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
-use crate::svg::simple_svg_to_path;
+use crate::AppState;
+use super::FrameStage;
+use super::assets::GameAssets;
+use super::bullet::BulletCollidable;
+use super::hit::{HitEvent, distinct_hit_events};
+use super::invulnerable::{Invulnerable, TestInvulnerable};
+use super::movable::{Movable, MovableTorusConstraint};
+use super::collidable::{Collidable, Collider};
+use super::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
+use super::svg::simple_svg_to_path;
 
 pub struct AsteroidPlugin;
 
 impl Plugin for AsteroidPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(
-            asteroid_collision_system
-                .label(SystemLabel::Collision)
-                .after(SystemLabel::Movement)
-        );
-        app.add_system(
-            asteroid_hit_system
-                .after(SystemLabel::Collision)
-        );
         app.add_event::<AsteroidDestroyedEvent>();
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(
+                    asteroid_collision_system
+                        .label(FrameStage::Collision)
+                        .after(FrameStage::Movement)
+                )
+                .with_system(
+                    asteroid_hit_system
+                        .label(FrameStage::CollisionEffect)
+                        .after(FrameStage::Collision)
+                )
+        );
+        app.add_system_set(
+            SystemSet::on_exit(AppState::Game)
+                .with_system(destroy_asteroids_system)
+        );
     }
 }
 
@@ -66,6 +75,16 @@ pub fn create_asteroid_assets() -> AsteroidAssets {
         .collect();
 
     AsteroidAssets { asteroid_shapes }
+}
+
+// Teardown
+
+fn destroy_asteroids_system(mut commands: Commands, query: Query<Entity, With<Asteroid>>) {
+    for entity in query.iter() {
+        commands
+            .entity(entity)
+            .despawn_recursive();
+    }
 }
 
 // Asteroids

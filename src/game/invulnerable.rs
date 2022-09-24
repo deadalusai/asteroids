@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
-use crate::util::update_drawmode_alpha;
+use crate::AppState;
+use super::util::update_drawmode_alpha;
 
 // Plugins
 
@@ -9,7 +10,10 @@ pub struct InvulnerablePlugin;
 
 impl Plugin for InvulnerablePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(bullet_invulnerability_system);
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(update_invulnerability_system)
+        );
     }
 }
 
@@ -44,7 +48,7 @@ impl TestInvulnerable for Option<&Invulnerable> {
 
 // Systems
 
-pub fn bullet_invulnerability_system(
+pub fn update_invulnerability_system(
     time: Res<Time>,
     mut query: Query<(&mut Invulnerable, Option<&mut DrawMode>)>
 ) {

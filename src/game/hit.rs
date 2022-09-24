@@ -18,6 +18,6 @@ pub struct HitEvent(pub Entity);
 
 // Helpers
 
-pub fn distinct_hit_events<'a>(events: &'a mut bevy::prelude::EventReader<crate::hit::HitEvent>) -> impl Iterator<Item=&'a crate::hit::HitEvent> {
-    crate::util::distinct_by(events.iter(), |e| e.0)
+pub fn distinct_hit_events<'a>(events: &'a mut bevy::prelude::EventReader<super::hit::HitEvent>) -> impl Iterator<Item=&'a super::hit::HitEvent> {
+    super::util::distinct_by(events.iter(), |e| e.0)
 }

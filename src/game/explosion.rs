@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_prototype_lyon::prelude::*;
-use crate::movable::Movable;
-use crate::svg::simple_svg_to_path;
-use crate::util::*;
+use crate::AppState;
+use super::movable::Movable;
+use super::svg::simple_svg_to_path;
+use super::util::*;
 
 // Explosions
 
@@ -13,7 +14,14 @@ pub struct ExplosionPlugin;
 
 impl Plugin for ExplosionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(explosion_system);
+        app.add_system_set(
+            SystemSet::on_update(AppState::Game)
+                .with_system(explosion_system)
+        );
+        app.add_system_set(
+            SystemSet::on_exit(AppState::Game)
+                .with_system(destroy_explosions_system)
+        );
     }
 }
 
@@ -58,6 +66,16 @@ pub fn create_explosion_assets() -> ExplosionAssets {
             .push(ExplosionPart { direction, shape });
     }
     ExplosionAssets { explosion_parts }
+}
+
+// Teardown
+
+fn destroy_explosions_system(mut commands: Commands, query: Query<Entity, With<Explosion>>) {
+    for entity in query.iter() {
+        commands
+            .entity(entity)
+            .despawn_recursive();
+    }
 }
 
 // Entity
