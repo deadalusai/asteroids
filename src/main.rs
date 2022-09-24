@@ -21,7 +21,7 @@ const FIXED_WIDTH_HEIGHT: f32 = 200.0;
 
 fn main() {
     let title = ASTEROIDS_TITLE.into();
-    let (width, height) = (1600., 1200.);
+    let (width, height) = (1024., 768.);
     App::new()
         // bevy
         .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))

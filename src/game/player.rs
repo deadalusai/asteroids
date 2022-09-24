@@ -114,16 +114,6 @@ fn player_keyboard_event_system(
 
     for (mut movable, mut bullet_controller, children) in rocket_query.iter_mut() {
 
-        // DEBUG: Reset rocket position
-        if kb.pressed(KeyCode::R) {
-            movable.position = Vec2::new(0., 0.);
-            movable.velocity = Vec2::splat(0.);
-            movable.acceleration = None;
-            movable.heading_angle = 0.;
-            movable.rotational_velocity = 0.;
-            movable.rotational_acceleration = None;
-        }
-
         // Update rotational acceleration
         movable.rotational_acceleration = match (turning_left, turning_right) {
             (true, false) => Some(Acceleration::new(ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),

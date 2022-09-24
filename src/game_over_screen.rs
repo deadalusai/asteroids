@@ -14,7 +14,7 @@ impl Plugin for GameOverScreenPlugin {
         );
         app.add_system_set(
             SystemSet::on_update(AppState::GameOver)
-                .with_system(game_over_update_system)
+                .with_system(game_over_keyboard_system)
         );
         app.add_system_set(
             SystemSet::on_exit(AppState::GameOver)
@@ -53,9 +53,9 @@ fn game_over_setup_system(
         color: Color::WHITE,
     };
 
-    let points_text_style = TextStyle {
+    let secondary_text_style = TextStyle {
         font: font_light,
-        font_size: 70.0,
+        font_size: 50.0,
         color: Color::GRAY,
     };
 
@@ -68,7 +68,7 @@ fn game_over_setup_system(
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 flex_direction: FlexDirection::ColumnReverse,
                 align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceEvenly,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             color: background.into(),
@@ -79,17 +79,25 @@ fn game_over_setup_system(
             // Title
             parent.spawn_bundle(
                 TextBundle::from_section("GAME OVER", title_text_style)
-                    .with_style(margin_style.clone())
+                .with_style(margin_style.clone())
             );
             // Score
             parent.spawn_bundle(
                 TextBundle::from_sections([
-                    TextSection::new("SCORE ", points_text_style.clone()),
-                    TextSection::new(format!("{}", game_results.score), TextStyle { color: Color::GOLD, ..points_text_style }),
+                    TextSection::new("SCORE ", secondary_text_style.clone()),
+                    TextSection::new(game_results.score.to_string(), ts_with_color(&secondary_text_style, Color::GOLD)),
                 ])
                 .with_style(margin_style.clone())
             );
+            parent.spawn_bundle(
+                TextBundle::from_section("Press [esc] to continue", secondary_text_style)
+                .with_style(margin_style.clone())
+            );
         });
+}
+
+fn ts_with_color(ts: &TextStyle, color: Color) -> TextStyle {
+    TextStyle { color, ..ts.clone() }
 }
 
 fn game_over_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<GameOverRoot>>) {
@@ -101,14 +109,11 @@ fn game_over_cleanup_system(mut commands: Commands, fragments: Query<Entity, Wit
     }
 }
 
-fn game_over_update_system(
-    kb: Res<Input<KeyCode>>,
+fn game_over_keyboard_system(
+    mut kb: ResMut<Input<KeyCode>>,
     mut app_state: ResMut<State<AppState>>,
 ) {
-    let should_continue =
-        kb.just_pressed(KeyCode::Escape);
-
-    if should_continue {
+    if kb.clear_just_released(KeyCode::Escape) {
         app_state.replace(AppState::Menu).unwrap();
     }
 }

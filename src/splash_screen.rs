@@ -18,7 +18,7 @@ impl Plugin for SplashScreenPlugin {
         );
         app.add_system_set(
             SystemSet::on_update(AppState::Menu)
-                .with_system(menu_update_system)
+                .with_system(menu_keyboard_system)
         );
     }
 }
@@ -29,10 +29,6 @@ impl Plugin for SplashScreenPlugin {
 struct MenuRoot;
 
 // Menu
-
-const COLOR_NORMAL: Color = Color::rgb(0.15, 0.15, 0.15);
-const COLOR_HOVERED: Color = Color::rgb(0.25, 0.25, 0.25);
-const COLOR_PRESSED: Color = Color::rgb(0.35, 0.75, 0.35);
 
 fn menu_setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font_light = asset_server.load("fonts/RedHatMono-Light.ttf");
@@ -45,11 +41,11 @@ fn menu_setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let title_text_style = TextStyle {
         font: font_bold,
-        font_size: 120.0,
+        font_size: 90.0,
         color: Color::WHITE,
     };
 
-    let button_text_style = TextStyle {
+    let secondary_text_style = TextStyle {
         font: font_light,
         font_size: 50.0,
         color: Color::GRAY,
@@ -62,7 +58,7 @@ fn menu_setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 flex_direction: FlexDirection::ColumnReverse,
                 align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceEvenly,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             color: Color::NONE.into(),
@@ -70,58 +66,15 @@ fn menu_setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(MenuRoot)
         .with_children(|parent| {
-
-            // Title
-            parent
-                .spawn_bundle(
-                    TextBundle::from_section("ASTEROIDS", title_text_style)
-                        .with_style(margin_style.clone())
-                );
-                
-            // Controls
-            parent
-                .spawn_bundle(ButtonBundle {
-                    style: Style {
-                        size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-                        margin: margin_style.margin.clone(),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    color: COLOR_NORMAL.into(),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    parent
-                        .spawn_bundle(
-                            TextBundle::from_section("Play", button_text_style)
-                                .with_style(margin_style.clone())
-                        );
-                });
+            parent.spawn_bundle(
+                TextBundle::from_section("ASTEROIDS", title_text_style)
+                .with_style(margin_style.clone())
+            );
+            parent.spawn_bundle(
+                TextBundle::from_section("Press [space] to begin", secondary_text_style)
+                .with_style(margin_style.clone())
+            );
         });
-}
-
-fn menu_update_system(
-    mut state: ResMut<State<AppState>>,
-    mut interaction_query: Query<
-        (&Interaction, &mut UiColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    for (interaction, mut color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Clicked => {
-                *color = COLOR_PRESSED.into();
-                state.set(AppState::Game).unwrap();
-            }
-            Interaction::Hovered => {
-                *color = COLOR_HOVERED.into();
-            }
-            Interaction::None => {
-                *color = COLOR_NORMAL.into();
-            }
-        }
-    }
 }
 
 fn menu_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<MenuRoot>>) {
@@ -129,5 +82,14 @@ fn menu_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<Men
         commands
             .entity(entity)
             .despawn_recursive();
+    }
+}
+
+fn menu_keyboard_system(
+    mut kb: ResMut<Input<KeyCode>>,
+    mut app_state: ResMut<State<AppState>>,
+) {
+    if kb.clear_just_released(KeyCode::Space) {
+        app_state.set(AppState::Game).unwrap();
     }
 }

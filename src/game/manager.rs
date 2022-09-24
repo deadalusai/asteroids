@@ -406,7 +406,7 @@ fn game_keyboard_event_system(
         game.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::AtPosition(Vec2::new(0., 20.)));
     }
 
-    if kb.clear_just_pressed(KeyCode::Escape) {
+    if kb.clear_just_released(KeyCode::Escape) {
         app_state.push(AppState::Pause).unwrap();
     }
 }
