@@ -1,6 +1,6 @@
 # Asteroids
 
-Requires nightly Rust.
+Requires nightly Rust. [Play it in the browser](https://deadalusai.github.com/).
 
 ## Running
 
@@ -13,7 +13,7 @@ Run in browser:
 ```
 rustup target install wasm32-unknown-unknown
 cargo install wasm-server-runner
-cargo run --target wasm32-unknown-unknown
+cargo run --release --target wasm32-unknown-unknown
 ```
 
 ## Compiling for web

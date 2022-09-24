@@ -9,24 +9,35 @@ pub struct MovablePlugin;
 
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
+        let _movable_system = ||
+            movable_system
+                .label(FrameStage::Movement)
+                .after(FrameStage::Input);
+
+        let _movable_torus_constraint_system = ||
+            movable_torus_constraint_system
+                .label(FrameStage::Movement)
+                .after(FrameStage::Start)
+                .after(movable_system);
+
+        let _movable_update_transform_system = ||
+            movable_update_transform_system 
+                .label(FrameStage::Movement)
+                .after(movable_torus_constraint_system);
+
         app.add_system_set(
             SystemSet::on_update(AppState::Game)
-                .with_system(
-                    movable_system
-                        .label(FrameStage::Movement)
-                        .after(FrameStage::Input)
-                )
-                .with_system(
-                    movable_torus_constraint_system
-                        .label(FrameStage::Movement)
-                        .after(FrameStage::Start)
-                        .after(movable_system)
-                )
-                .with_system(
-                    movable_update_transform_system
-                        .label(FrameStage::Movement)
-                        .after(movable_torus_constraint_system)
-                )
+                .with_system(_movable_system())
+                .with_system(_movable_torus_constraint_system())
+                .with_system(_movable_update_transform_system())
+        );
+
+        // Process movable entities on GameOver
+        app.add_system_set(
+            SystemSet::on_update(AppState::GameOver)
+                .with_system(_movable_system())
+                .with_system(_movable_torus_constraint_system())
+                .with_system(_movable_update_transform_system())
         );
     }
 }
