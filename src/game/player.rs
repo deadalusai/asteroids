@@ -41,7 +41,11 @@ impl Plugin for PlayerPlugin {
                         .label(FrameStage::Input)
                 )
                 .with_system(
-                    rocket_exhaust_system
+                    player_update_movable_system
+                        .after(player_keyboard_event_system)
+                )
+                .with_system(
+                    rocket_exhaust_update_system
                         .after(player_keyboard_event_system)
                 )
                 .with_system(
@@ -52,7 +56,7 @@ impl Plugin for PlayerPlugin {
         );
         app.add_system_set(
             SystemSet::on_exit(AppState::Game)
-                .with_system(destroy_player_system)
+                .with_system(player_teardown_system)
         );
     }
 }
@@ -84,7 +88,7 @@ pub fn create_roket_assets() -> RocketAssets {
 
 // Teardown
 
-fn destroy_player_system(mut commands: Commands, query: Query<Entity, With<PlayerRocket>>) {
+fn player_teardown_system(mut commands: Commands, query: Query<Entity, With<PlayerRocket>>) {
     for entity in query.iter() {
         commands
             .entity(entity)
@@ -94,28 +98,40 @@ fn destroy_player_system(mut commands: Commands, query: Query<Entity, With<Playe
 
 // Entity
 
-#[derive(Component)]
-pub struct PlayerRocket;
+#[derive(Component, Default)]
+pub struct PlayerRocket {
+    turning_left: bool,
+    turning_right: bool,
+    accelerating: bool,
+}
 
 #[derive(Component)]
-pub struct PlayerRocketExhaust {
-    is_firing: bool,
-}
+pub struct PlayerRocketExhaust;
 
 fn player_keyboard_event_system(
     kb: Res<Input<KeyCode>>,
-    mut rocket_query: Query<(&mut Movable, &mut BulletController, &Children), With<PlayerRocket>>,
-    mut exhaust_query: Query<&mut PlayerRocketExhaust>
+    mut rocket_query: Query<(&mut PlayerRocket, &mut BulletController)>
 ) {
     let turning_left = kb.pressed(KeyCode::Left) || kb.pressed(KeyCode::A);
     let turning_right = kb.pressed(KeyCode::Right) || kb.pressed(KeyCode::D);
     let accelerating = kb.pressed(KeyCode::Up) || kb.pressed(KeyCode::W);
     let firing = kb.pressed(KeyCode::Space);
 
-    for (mut movable, mut bullet_controller, children) in rocket_query.iter_mut() {
+    for (mut player_rocket, mut bullet_controller) in rocket_query.iter_mut() {
+        player_rocket.turning_left = turning_left;
+        player_rocket.turning_right = turning_right;
+        player_rocket.accelerating = accelerating;
+        bullet_controller.try_set_firing_state(firing);
+    }
+}
 
+fn player_update_movable_system(
+    mut rocket_query: Query<(&PlayerRocket, &mut Movable)>
+) {
+
+    for (rocket, mut movable) in rocket_query.iter_mut() {
         // Update rotational acceleration
-        movable.rotational_acceleration = match (turning_left, turning_right) {
+        movable.rotational_acceleration = match (rocket.turning_left, rocket.turning_right) {
             (true, false) => Some(Acceleration::new(ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),
             (false, true) => Some(Acceleration::new(-ROCKET_RATE_OF_TURN).with_limit(AcceleratingTo::Max(ROCKET_MAX_ROTATION_SPEED))),
             // Apply "turn drag"
@@ -126,7 +142,7 @@ fn player_keyboard_event_system(
 
         // Update acceleration
         movable.acceleration =
-            if accelerating {
+            if rocket.accelerating {
                 let acc = movable.heading_normal() * ROCKET_RATE_OF_ACCELERATION;
                 Some(Acceleration::new(acc).with_limit(AcceleratingTo::Max(ROCKET_MAX_SPEED)))
             }
@@ -139,17 +155,37 @@ fn player_keyboard_event_system(
             else {
                 None
             };
+    }
+}
 
-        // Start up the guns?
-        bullet_controller.try_set_firing_state(firing);
+// Rocket exhaust flicker system
 
+fn rocket_exhaust_update_system(
+    time: Res<Time>,
+    rocket_query: Query<(&PlayerRocket, &Children), With<PlayerRocket>>,
+    mut exhaust_query: Query<&mut DrawMode, With<PlayerRocketExhaust>>
+) {
+    let t_secs = time.seconds_since_startup() as f32;
+
+    for (rocket, children) in rocket_query.iter() {
         // Update child components
         for &child in children.iter() {
-            if let Ok(mut exhaust) = exhaust_query.get_mut(child) {
-                exhaust.is_firing = accelerating;
+            if let Ok(mut draw_mode) = exhaust_query.get_mut(child) {
+                let new_alpha =
+                    if rocket.accelerating { exhaust_opacity_over_t(t_secs) }
+                    else { 0. };
+                update_drawmode_alpha(&mut draw_mode, new_alpha);
             }
         }
     }
+}
+
+fn exhaust_opacity_over_t(t_secs: f32) -> f32 {
+    // flicker the exhaust between (0.2, 1.0), eight times per second
+    let (min, max) = (0.2, 1.0);
+    let frequency = 8.;
+    let scale = ((t_secs * TAU * frequency).cos() + 1.0) / 2.0;
+    min + (max - min) * scale
 }
 
 // Spawning
@@ -205,7 +241,7 @@ pub fn spawn_player_rocket(
 
     let entity = commands
         .spawn()
-        .insert(PlayerRocket)
+        .insert(PlayerRocket::default())
         .insert(Movable {
             position,
             velocity,
@@ -228,9 +264,7 @@ pub fn spawn_player_rocket(
         .with_children(|child_commands| {
             child_commands
                 .spawn()
-                .insert(PlayerRocketExhaust {
-                    is_firing: false,
-                })
+                .insert(PlayerRocketExhaust)
                 .insert_bundle(GeometryBuilder::build_as(
                     &assets.rocket_exhaust_shape,
                     rocket_exhaust_draw_mode,
@@ -245,28 +279,6 @@ pub fn spawn_player_rocket(
             .entity(entity)
             .insert(Invulnerable::new(timer));
     }
-}
-
-// Rocket exhaust flicker system
-
-fn rocket_exhaust_system(
-    time: Res<Time>,
-    mut query: Query<(&PlayerRocketExhaust, &mut DrawMode)>
-) {
-    let t_secs = time.seconds_since_startup() as f32;
-
-    for (exhaust, mut draw_mode) in query.iter_mut() {
-        let new_alpha = if exhaust.is_firing { exhaust_opacity_over_t(t_secs) } else { 0. };
-        update_drawmode_alpha(&mut draw_mode, new_alpha);
-    }
-}
-
-fn exhaust_opacity_over_t(t_secs: f32) -> f32 {
-    // flicker the exhaust between (0.2, 1.0), eight times per second
-    let (min, max) = (0.2, 1.0);
-    let frequency = 8.;
-    let scale = ((t_secs * TAU * frequency).cos() + 1.0) / 2.0;
-    min + (max - min) * scale
 }
 
 // Destruction system
