@@ -204,7 +204,8 @@ pub fn spawn_player_rocket(
     let rocket_exhaust_draw_mode = DrawMode::Stroke(StrokeMode::new(rocket_exhaust_color, LINE_WIDTH));
     
     // Transform
-    let transform = Transform::from_translation(Vec3::new(position.x, position.y, ROCKET_Z));
+    let transform = Transform::from_translation(Vec3::new(position.x, position.y, ROCKET_Z))
+        .with_rotation(Quat::from_rotation_z(initial_heading_angle));
     
     // Collision detection
     // NOTE: Currently using a spherical collision box, shrunk down to fit within the hull
