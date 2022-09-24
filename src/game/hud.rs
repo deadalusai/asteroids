@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, Diagnostics};
 
 use crate::AppState;
 use super::manager::GameManager;
@@ -9,6 +10,7 @@ pub struct HeadsUpDisplayPlugin;
 
 impl Plugin for HeadsUpDisplayPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugin(FrameTimeDiagnosticsPlugin::default());
         app.add_system_set(
             SystemSet::on_enter(AppState::Game)
                 .with_system(setup_system)
@@ -117,15 +119,27 @@ fn status_text_update_system(
 
 fn debug_text_update_system(
     game: Res<GameManager>,
+    diag: Res<Diagnostics>,
     mut debug_text: Query<&mut Text, With<DebugText>>
 ) {
     let mut debug_text = debug_text.get_single_mut().unwrap();
     let debug_s = &mut debug_text.sections[0].value;
     debug_s.clear();
-    write_debug_info_text(&game, debug_s).unwrap();
+    write_debug_info_text(&diag, &game, debug_s).unwrap();
 }
 
-fn write_debug_info_text(game: &GameManager, w: &mut impl std::fmt::Write) -> Result<(), std::fmt::Error> {
+fn write_debug_info_text(
+    diag: &Diagnostics,
+    game: &GameManager,
+    w: &mut impl std::fmt::Write
+) -> Result<(), std::fmt::Error> {
+    // FPS
+    if let Some(fps) = diag.get(FrameTimeDiagnosticsPlugin::FPS) {
+        if let Some(avg) = fps.average() {
+            writeln!(w, "fps: {avg:.2}")?;
+        }
+    };
+    // Game state
     writeln!(w, "asteroids on screen: {}", game.debug_asteroid_count_on_screen)?;
     writeln!(w, "asteroids pending spawn: {}", game.scheduled_asteroid_spawns.len())?;
     writeln!(w, "player state: {:?}", game.player_state)?;
