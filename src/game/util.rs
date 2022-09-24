@@ -1,24 +1,18 @@
-use bevy::prelude::{Color, Vec2};
+use bevy::prelude::Vec2;
 use bevy::utils::HashSet;
 use bevy_prototype_lyon::prelude::DrawMode;
 
 pub fn update_drawmode_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
-
-    fn update_color_alpha(color: &mut Color, a: f32) {
-        let alpha_ref = match color {
-            Color::Rgba { ref mut alpha, .. } => alpha,
-            Color::RgbaLinear { ref mut alpha, .. } => alpha,
-            Color::Hsla { ref mut alpha, .. } => alpha,
-        };
-        *alpha_ref = a;
-    }
-
     match draw_mode {
-        DrawMode::Stroke(stroke) => update_color_alpha(&mut stroke.color, new_alpha),
-        DrawMode::Fill(fill) => update_color_alpha(&mut fill.color, new_alpha),
+        DrawMode::Stroke(stroke) => {
+            stroke.color.set_a(new_alpha);
+        },
+        DrawMode::Fill(fill) => {
+            fill.color.set_a(new_alpha);
+        },
         DrawMode::Outlined { fill_mode, outline_mode } => {
-            update_color_alpha(&mut fill_mode.color, new_alpha);
-            update_color_alpha(&mut outline_mode.color, new_alpha);
+            fill_mode.color.set_a(new_alpha);
+            outline_mode.color.set_a(new_alpha);
         },
     }
 }
@@ -33,9 +27,8 @@ pub trait RngUtil {
 
 impl RngUtil for rand::rngs::ThreadRng {
     fn random_unit_vec2(&mut self) -> Vec2 {
-        use rand::Rng;
-        let x = self.gen::<f32>() * 2.0 - 1.0;
-        let y = self.gen::<f32>() * 2.0 - 1.0;
+        let x = self.random_f32() * 2.0 - 1.0;
+        let y = self.random_f32() * 2.0 - 1.0;
         Vec2::new(x, y).normalize()
     }
     
@@ -72,9 +65,9 @@ impl Line {
         Self { origin, normal }
     }
 
-    /// Tests for an intersection between the given and this line.
+    /// Tests for an intersection between the given ray and this line.
     /// Returns the distance along the ray at which the intersection occurs.
-    pub fn try_intersect_line(&self, ray: &Ray) -> Option<f32> {
+    pub fn try_intersect_line(&self, ray: &Ray2) -> Option<f32> {
         // intersection of ray with a line (or plane, with 3d vectors) at point `t`
         //  t = ((line_origin - ray_origin) . line_normal) / (ray_direction . line_normal)
         let denominator = ray.direction.dot(self.normal);
@@ -84,7 +77,7 @@ impl Line {
         }
         let numerator = (self.origin - ray.origin).dot(self.normal);
         let t = numerator / denominator;
-        // A negative `t` indicates the plane is behind the ray origin
+        // A negative `t` indicates the line is behind the ray origin
         if t < 0.0 {
             return None;
         }
@@ -92,14 +85,14 @@ impl Line {
     }
 }
 
-pub struct Ray {
+pub struct Ray2 {
     origin: Vec2,
     direction: Vec2,
 }
 
-impl Ray {
+impl Ray2 {
     pub fn from_origin_and_direction(origin: Vec2, direction: Vec2) -> Self {
-        Self { origin, direction }
+        Self { origin, direction: direction.normalize() }
     }
 
     pub fn point_at_t(&self, t: f32) -> Vec2 {

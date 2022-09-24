@@ -373,7 +373,7 @@ fn random_offscreen_position(rng: &mut rand::rngs::ThreadRng, world_boundaries: 
     use std::cmp::Ordering::*;
     // TODO: Pick a random position off the screen
     // Project this line until it intersects with one of the edges of the world_boundaries.
-    let ray = Ray::from_origin_and_direction(Vec2::ZERO, rng.random_unit_vec2());
+    let ray = Ray2::from_origin_and_direction(Vec2::ZERO, rng.random_unit_vec2());
     let t = get_world_boundary_lines(world_boundaries)
         .iter()
         .filter_map(|line| line.try_intersect_line(&ray))
