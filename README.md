@@ -21,8 +21,10 @@ cargo run --release --target wasm32-unknown-unknown
 Run `wasm-bindgen` to generate all the files need to run in the browser.
 
 ```
+rustup target install wasm32-unknown-unknown
+cargo install wasm-bindgen-cli
 cargo build --release --target wasm32-unknown-unknown
-wasm-bindgen --out-dir ./out/ --target web ./target/
+wasm-bindgen --target web --out-dir ./target/web ./target/wasm32-unknown-unknown/release/asteroids.wasm
 ```
 
 ## Reference
