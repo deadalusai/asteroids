@@ -4,6 +4,7 @@ use rand::thread_rng;
 use crate::AppState;
 use super::FrameStage;
 use super::assets::GameAssets;
+use super::alien::{AlienSpawn, AlienUfoDestroyedEvent, spawn_alien_ufo};
 use super::player::{PlayerRocketDestroyedEvent, RocketSpawn, spawn_player_rocket};
 use super::asteroid::{Asteroid, AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidShapeId, spawn_asteroid};
 use super::util::*;
@@ -15,11 +16,11 @@ impl Plugin for GameManagerPlugin {
         app.insert_resource(WorldBoundaries::default());
         app.add_system_set(
             SystemSet::on_enter(AppState::Game)
-                .with_system(initialise_game_system)
+                .with_system(game_setup_system)
         );
         app.add_system_set(
             SystemSet::on_exit(AppState::Game)
-                .with_system(destroy_game_system)
+                .with_system(game_teardown_system)
         );
         app.add_system_set(
             SystemSet::on_update(AppState::Game)
@@ -40,21 +41,27 @@ impl Plugin for GameManagerPlugin {
                         .after(game_events_system)
                 )
                 .with_system(
-                    game_keyboard_event_system
+                    game_keyboard_system
                 )
         );
     }
 }
 
-fn initialise_game_system(mut commands: Commands) {
+const ALIEN_SPAWN_MIN_SECS: f32 = 5.0;
+const ALIEN_SPAWN_MAX_SECS: f32 = 60.0;
+
+fn game_setup_system(mut commands: Commands) {
+    let mut rng = thread_rng();
+    let alien_spawn_secs = ALIEN_SPAWN_MIN_SECS + rng.random_f32() * (ALIEN_SPAWN_MAX_SECS - ALIEN_SPAWN_MIN_SECS);
     let game_init = GameInit {
         asteroid_count: 8,
         player_lives: 3,
+        alien_spawn_secs,
     };
     commands.insert_resource(GameManager::new(game_init));
 }
 
-fn destroy_game_system(mut commands: Commands) {
+fn game_teardown_system(mut commands: Commands) {
     commands.remove_resource::<GameManager>();
 }
 
@@ -89,14 +96,21 @@ pub struct GameInit {
     /// The number of asteroids the game will try to maintain on screen
     pub asteroid_count: u32,
     pub player_lives: u32,
+    pub alien_spawn_secs: f32,
 }
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum PlayerState {
-    Start,
+    FirstSpawn,
+    Respawning,
     Ready,
-    Respawn,
     Destroyed,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum AlienState {
+    Spawning,
+    Ready,
 }
 
 enum AsteroidSpawnInstruction {
@@ -117,7 +131,9 @@ pub struct GameManager {
     pub debug_asteroid_count_on_screen: u32,
     pub scheduled_asteroid_spawns: Vec<ScheduledAsteroidSpawn>,
     pub player_state: PlayerState,
+    pub alien_state: AlienState,
     player_spawn_timer: Timer,
+    alien_spawn_timer: Timer,
     init: GameInit,
 }
 
@@ -127,12 +143,15 @@ impl GameManager {
         let mut game = Self {
             player_lives_remaining: init.player_lives,
             player_points: 0,
-            player_state: PlayerState::Start,
-            player_spawn_timer: Timer::from_seconds(GAME_PLAYER_RESPAWN_TIME_SECS, false),
+            player_state: PlayerState::FirstSpawn,
+            alien_state: AlienState::Spawning,
+            player_spawn_timer: Timer::from_seconds(0.0, false),
+            alien_spawn_timer: Timer::from_seconds(0.0, false),
             scheduled_asteroid_spawns: Vec::new(),
             debug_asteroid_count_on_screen: 0,
             init,
         };
+        game.schedule_alien_ufo_to_spawn();
         for _ in 0..asteroid_count {
             game.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::Anywhere);
         }
@@ -145,26 +164,25 @@ impl GameManager {
         }
         self.player_state = match self.player_lives_remaining {
             0 => PlayerState::Destroyed,
-            _ => PlayerState::Respawn,
+            _ => PlayerState::Respawning,
         };
-        if self.player_state == PlayerState::Respawn {
+        if self.player_state == PlayerState::Respawning {
             self.player_lives_remaining -= 1;
-            self.player_spawn_timer.reset();
+            self.player_spawn_timer = Timer::from_seconds(GAME_PLAYER_RESPAWN_TIME_SECS, false);
         }
     }
 
-    fn on_rocket_spawned(&mut self) {
-        self.player_state = PlayerState::Ready;
-    }
-
     fn on_asteroid_destroyed(&mut self, event: AsteroidDestroyedEvent) {
-        // Update points
         self.player_points += get_points_for_asteroid(event.size);
-
         // Break apart large asteroids
         if event.size == AsteroidSize::Medium || event.size == AsteroidSize::Large {
             self.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::FromDestroyedAsteroid(event));
         }
+    }
+
+    fn on_alien_ufo_destroyed(&mut self) {
+        self.player_points += get_points_for_alien_ufo();
+        self.schedule_alien_ufo_to_spawn();
     }
 
     fn on_asteroid_count_update(&mut self, current_asteroid_count: u32) {
@@ -184,8 +202,14 @@ impl GameManager {
         });
     }
 
+    fn schedule_alien_ufo_to_spawn(&mut self) {
+        self.alien_state = AlienState::Spawning;
+        self.alien_spawn_timer = Timer::from_seconds(self.init.alien_spawn_secs, false);
+    }
+
     fn tick(&mut self, delta: std::time::Duration) {
         self.player_spawn_timer.tick(delta);
+        self.alien_spawn_timer.tick(delta);
         for s in self.scheduled_asteroid_spawns.iter_mut() {
             s.spawn_timer.tick(delta);
         }
@@ -193,10 +217,22 @@ impl GameManager {
 
     fn should_spawn_player(&self) -> bool {
         let should_spawn =
-            self.player_state == PlayerState::Start ||
-            (self.player_state == PlayerState::Respawn && self.player_spawn_timer.finished());
+            self.player_state == PlayerState::FirstSpawn ||
+            (self.player_state == PlayerState::Respawning && self.player_spawn_timer.finished());
             
         return should_spawn;
+    }
+
+    fn on_rocket_spawned(&mut self) {
+        self.player_state = PlayerState::Ready;
+    }
+
+    fn should_spawn_alien_ufo(&self) -> bool {
+        return self.alien_state == AlienState::Spawning && self.alien_spawn_timer.finished();
+    }
+
+    fn on_alien_ufo_spawned(&mut self) {
+        self.alien_state = AlienState::Ready;
     }
 }
 
@@ -208,13 +244,18 @@ fn get_points_for_asteroid(size: AsteroidSize) -> u32 {
     }
 }
 
+fn get_points_for_alien_ufo() -> u32 {
+    15
+}
+
 // Systems
 
 // Listen for events and update the game state
 fn game_events_system(
     mut game: ResMut<GameManager>,
     mut rocket_destructions: EventReader<PlayerRocketDestroyedEvent>,
-    mut asteroid_destructions: EventReader<AsteroidDestroyedEvent>
+    mut asteroid_destructions: EventReader<AsteroidDestroyedEvent>,
+    mut alien_destructions: EventReader<AlienUfoDestroyedEvent>
 ) {
     if rocket_destructions.iter().next().is_some() {
         game.on_rocket_destroyed();
@@ -222,6 +263,10 @@ fn game_events_system(
 
     for ev in asteroid_destructions.iter() {
         game.on_asteroid_destroyed(ev.clone());
+    }
+
+    for _ in alien_destructions.iter() {
+        game.on_alien_ufo_destroyed();
     }
 }
 
@@ -250,6 +295,11 @@ fn game_effects_system(
         game.on_rocket_spawned();
         spawn_player_rocket(&mut commands, &assets.rocket, RocketSpawn::default());
     }
+    
+    if game.should_spawn_alien_ufo() {
+        game.on_alien_ufo_spawned();
+        handle_alien_ufo_spawn(&mut commands, &mut rng, &world_boundaries, &assets);
+    }
 
     for spawn in game.scheduled_asteroid_spawns.drain_filter(|s| s.spawn_timer.finished()) {
         handle_asteroid_spawn(&mut commands, &mut rng, &world_boundaries, &assets, spawn);
@@ -263,6 +313,27 @@ fn game_effects_system(
         app_state.push(AppState::GameOver).unwrap();
         return;
     }
+}
+
+const ALIEN_UFO_SPEED: f32 = 50.0;
+
+fn handle_alien_ufo_spawn(
+    commands: &mut Commands,
+    rng: &mut rand::rngs::ThreadRng,
+    world_boundaries: &WorldBoundaries,
+    assets: &GameAssets
+) {
+
+    // Pick a position off-screen
+    let from_left = rng.random_bool();
+    let x = if from_left { world_boundaries.left - 10.0 } else { world_boundaries.right + 10.0 };
+    let y = (rng.random_f32() * 2. - 1.) * (world_boundaries.top * 0.8);
+    let x_speed = if from_left { ALIEN_UFO_SPEED } else { -ALIEN_UFO_SPEED };
+    
+    spawn_alien_ufo(commands, &assets.alien, AlienSpawn {
+        position: Vec2::new(x, y),
+        velocity: Vec2::new(x_speed, 0.),
+    });
 }
 
 fn handle_asteroid_spawn(
@@ -397,7 +468,7 @@ fn random_asteroid_shape(rng: &mut rand::rngs::ThreadRng) -> AsteroidShapeId {
 
 // Keyboard handlers
 
-fn game_keyboard_event_system(
+fn game_keyboard_system(
     mut kb: ResMut<Input<KeyCode>>,
     mut game: ResMut<GameManager>,
     mut app_state: ResMut<State<AppState>>,

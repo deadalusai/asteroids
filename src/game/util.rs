@@ -22,6 +22,7 @@ pub fn update_drawmode_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
 pub trait RngUtil {
     fn random_unit_vec2(&mut self) -> Vec2;
     fn random_f32(&mut self) -> f32;
+    fn random_bool(&mut self) -> bool;
     fn random_choice<'a, T>(&mut self, slice: &'a [T]) -> Option<&'a T>;
 }
 
@@ -33,6 +34,11 @@ impl RngUtil for rand::rngs::ThreadRng {
     }
     
     fn random_f32(&mut self) -> f32 {
+        use rand::Rng;
+        self.gen()
+    }
+
+    fn random_bool(&mut self) -> bool {
         use rand::Rng;
         self.gen()
     }

@@ -192,9 +192,9 @@ fn exhaust_opacity_over_t(t_secs: f32) -> f32 {
 
 #[derive(Clone)]
 pub struct RocketSpawn {
-    position: Vec2,
-    velocity: Vec2,
-    invulnerable: Option<Timer>,
+    pub position: Vec2,
+    pub velocity: Vec2,
+    pub invulnerable: Option<Timer>,
 }
 
 impl Default for RocketSpawn {

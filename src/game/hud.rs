@@ -78,6 +78,7 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
                 left: Val::Px(15.0),
                 ..default()
             },
+            justify_content: JustifyContent::FlexStart,
             ..default()
         });
 
@@ -105,6 +106,7 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
                 right: Val::Px(15.0),
                 ..default()
             },
+            justify_content: JustifyContent::FlexEnd,
             ..default()
         });
 
@@ -158,5 +160,6 @@ fn write_debug_info_text(
     writeln!(w, "asteroids on screen: {}", game.debug_asteroid_count_on_screen)?;
     writeln!(w, "asteroids pending spawn: {}", game.scheduled_asteroid_spawns.len())?;
     writeln!(w, "player state: {:?}", game.player_state)?;
+    writeln!(w, "alien state: {:?}", game.alien_state)?;
     Ok(())
 }

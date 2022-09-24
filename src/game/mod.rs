@@ -4,6 +4,7 @@ pub mod movable;
 pub mod collidable;
 pub mod hit;
 pub mod player;
+pub mod alien;
 pub mod invulnerable;
 pub mod bullet;
 pub mod asteroid;
@@ -35,6 +36,7 @@ impl PluginGroup for GamePluginGroup {
         group.add(invulnerable::InvulnerablePlugin);
         group.add(assets::AssetsPlugin);
         group.add(player::PlayerPlugin);
+        group.add(alien::AlienPlugin);
         group.add(bullet::BulletPlugin);
         group.add(asteroid::AsteroidPlugin);
         group.add(explosion::ExplosionPlugin);
