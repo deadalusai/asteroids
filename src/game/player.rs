@@ -107,9 +107,9 @@ fn player_keyboard_event_system(
     mut rocket_query: Query<(&mut Movable, &mut BulletController, &Children), With<PlayerRocket>>,
     mut exhaust_query: Query<&mut PlayerRocketExhaust>
 ) {
-    let turning_left = kb.pressed(KeyCode::Left);
-    let turning_right = kb.pressed(KeyCode::Right);
-    let accelerating = kb.pressed(KeyCode::Up);
+    let turning_left = kb.pressed(KeyCode::Left) || kb.pressed(KeyCode::A);
+    let turning_right = kb.pressed(KeyCode::Right) || kb.pressed(KeyCode::D);
+    let accelerating = kb.pressed(KeyCode::Up) || kb.pressed(KeyCode::W);
     let firing = kb.pressed(KeyCode::Space);
 
     for (mut movable, mut bullet_controller, children) in rocket_query.iter_mut() {
