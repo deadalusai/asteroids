@@ -1,6 +1,6 @@
 # Asteroids
 
-Requires nightly Rust. [Play it in the browser](https://deadalusai.github.com/asteroids).
+Requires nightly Rust. [Play it in the browser](https://deadalusai.github.io/asteroids).
 
 ## Running
 
