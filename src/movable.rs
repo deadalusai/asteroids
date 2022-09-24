@@ -73,6 +73,22 @@ impl Movable {
     pub fn heading_normal(&self) -> Vec2 {
         Vec2::from_angle(self.heading_angle)
     }
+
+    fn is_moving_down(&self) -> bool {
+        self.velocity.y < 0.
+    }
+
+    fn is_moving_up(&self) -> bool {
+        self.velocity.y > 0.
+    }
+
+    fn is_moving_left(&self) -> bool {
+        self.velocity.x < 0.
+    }
+
+    fn is_moving_right(&self) -> bool {
+        self.velocity.x > 0.
+    }
 }
 
 fn movable_system(
@@ -172,18 +188,18 @@ fn movable_torus_constraint_system(
         let left = world_boundaries.left - torus.radius;
         let top = world_boundaries.top + torus.radius;
         let bottom = world_boundaries.bottom - torus.radius;
-        // Has this Movable left the screen?
+        // Is this Movable leaving the screen?
         // Teleport them to the other side of the Torus
-        if movable.position.x > right {
+        if movable.position.x > right && movable.is_moving_right() {
             movable.position.x = left;
         }
-        if movable.position.x < left {
+        if movable.position.x < left && movable.is_moving_left() {
             movable.position.x = right;
         }
-        if movable.position.y > top {
+        if movable.position.y > top && movable.is_moving_up() {
             movable.position.y = bottom;
         }
-        if movable.position.y < bottom {
+        if movable.position.y < bottom && movable.is_moving_down() {
             movable.position.y = top;
         }
     }

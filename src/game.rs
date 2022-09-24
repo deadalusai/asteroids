@@ -237,7 +237,7 @@ fn handle_asteroid_spawn(
         },
         AsteroidSpawnInstruction::OffScreen => {
             // Spawn off-screen asteroids
-            let position = random_offscreen_position(rng, world_boundaries);
+            let position = random_offscreen_position(rng, world_boundaries, 10.0);
             let velocity = random_asteroid_velocity(rng);
             let rotation = random_asteroid_rotation(rng);
             let size = random_asteroid_size(rng);
@@ -318,16 +318,18 @@ fn get_world_boundary_lines(world_boundaries: &WorldBoundaries) -> [Line; 4] {
     ]
 }
 
-fn random_offscreen_position(rng: &mut rand::rngs::ThreadRng, world_boundaries: &WorldBoundaries) -> Vec2 {
+fn random_offscreen_position(rng: &mut rand::rngs::ThreadRng, world_boundaries: &WorldBoundaries, add_t: f32) -> Vec2 {
+    use std::cmp::Ordering::*;
     // TODO: Pick a random position off the screen
     // Project this line until it intersects with one of the edges of the world_boundaries.
     let ray = Ray::from_origin_and_direction(Vec2::ZERO, rng.random_unit_vec2());
     let t = get_world_boundary_lines(world_boundaries)
         .iter()
         .filter_map(|line| line.try_intersect_line(&ray))
-        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal))
         .unwrap();
-    return ray.point_at_t(t);
+
+    return ray.point_at_t(t + add_t);
 }
 
 fn random_onscreen_position(rng: &mut rand::rngs::ThreadRng, world_boundaries: &WorldBoundaries) -> Vec2 {
