@@ -237,6 +237,7 @@ fn game_update_system(
 fn game_effects_system(
     mut commands: Commands,
     mut game: ResMut<GameManager>,
+    mut app_state: ResMut<State<AppState>>,
     world_boundaries: Res<WorldBoundaries>,
     time: Res<Time>,
     assets: Res<GameAssets>,
@@ -252,6 +253,15 @@ fn game_effects_system(
 
     for spawn in game.scheduled_asteroid_spawns.drain_filter(|s| s.spawn_timer.finished()) {
         handle_asteroid_spawn(&mut commands, &mut rng, &world_boundaries, &assets, spawn);
+    }
+
+    // Game over?
+    if game.player_state == PlayerState::Destroyed {
+        commands.insert_resource(crate::game_over_screen::GameResults {
+            score: game.player_points,
+        });
+        app_state.push(AppState::GameOver).unwrap();
+        return;
     }
 }
 
@@ -388,10 +398,15 @@ fn random_asteroid_shape(rng: &mut rand::rngs::ThreadRng) -> AsteroidShapeId {
 // Keyboard handlers
 
 fn game_keyboard_event_system(
-    kb: Res<Input<KeyCode>>,
-    mut game: ResMut<GameManager>
+    mut kb: ResMut<Input<KeyCode>>,
+    mut game: ResMut<GameManager>,
+    mut app_state: ResMut<State<AppState>>,
 ) {
     if kb.just_released(KeyCode::A) {
         game.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::AtPosition(Vec2::new(0., 20.)));
+    }
+
+    if kb.clear_just_pressed(KeyCode::Escape) {
+        app_state.push(AppState::Pause).unwrap();
     }
 }

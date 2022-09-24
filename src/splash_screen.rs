@@ -4,9 +4,9 @@ use crate::AppState;
 
 // Plugins
 
-pub struct SplashMenuPlugin;
+pub struct SplashScreenPlugin;
 
-impl Plugin for SplashMenuPlugin {
+impl Plugin for SplashScreenPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(AppState::Menu)
