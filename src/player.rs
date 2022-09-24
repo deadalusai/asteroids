@@ -8,23 +8,25 @@ use crate::hit::{HitEvent, distinct_hit_events};
 use crate::movable::{Movable, MovableTorusConstraint, Acceleration, AcceleratingTo};
 use crate::collidable::{Collidable, Collider};
 use crate::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
-use crate::bullet::{BulletController};
+use crate::bullet::BulletController;
+use crate::invulnerable::Invulnerable;
 use crate::svg::simple_svg_to_path;
 use crate::util::*;
 
 // Player's Rocket
 
-static ROCKET_RATE_OF_TURN: f32 = 999.0; // Instant rotation acceleration / deceleration
-static ROCKET_RATE_OF_TURN_DRAG: f32 = 999.0;
-static ROCKET_RATE_OF_ACCELERATION: f32 = 300.0;
-static ROCKET_RATE_OF_ACCELERATION_DRAG: f32 = 50.0;
-static ROCKET_MAX_SPEED: f32 = 200.0;
-static ROCKET_MAX_DRAG_SPEED: f32 = 20.0;
-static ROCKET_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
-static ROCKET_BULLET_SPEED: f32 = 250.0;
-static ROCKET_BULLET_MAX_AGE_SECS: f32 = 1.0;
-static ROCKET_FIRE_RATE: f32 = 5.0; // per second
-static ROCKET_Z: f32 = 10.0;
+const ROCKET_RATE_OF_TURN: f32 = 999.0; // Instant rotation acceleration / deceleration
+const ROCKET_RATE_OF_TURN_DRAG: f32 = 999.0;
+const ROCKET_RATE_OF_ACCELERATION: f32 = 300.0;
+const ROCKET_RATE_OF_ACCELERATION_DRAG: f32 = 50.0;
+const ROCKET_MAX_SPEED: f32 = 200.0;
+const ROCKET_MAX_DRAG_SPEED: f32 = 20.0;
+const ROCKET_MAX_ROTATION_SPEED: f32 = TAU; // 1 rotation per second
+const ROCKET_BULLET_SPEED: f32 = 250.0;
+const ROCKET_BULLET_MAX_AGE_SECS: f32 = 1.0;
+const ROCKET_FIRE_RATE: f32 = 5.0; // per second
+const ROCKET_SPAWN_INVULNERABILITY_SECS: f32 = 3.0;
+const ROCKET_Z: f32 = 10.0;
 
 pub struct PlayerPlugin;
 
@@ -140,10 +142,21 @@ fn player_keyboard_event_system(
 
 // Spawning
 
-#[derive(Default)]
+#[derive(Clone)]
 pub struct RocketSpawn {
     position: Vec2,
     velocity: Vec2,
+    invulnerable: Option<Timer>,
+}
+
+impl Default for RocketSpawn {
+    fn default() -> Self {
+        Self {
+            position: default(),
+            velocity: default(),
+            invulnerable: Some(Timer::from_seconds(ROCKET_SPAWN_INVULNERABILITY_SECS, false))
+        }
+    }
 }
 
 const LINE_WIDTH: f32 = 0.2;
@@ -177,7 +190,7 @@ pub fn spawn_player_rocket(
     let radius = rocket_shape_height / 2.;
     let collider = Collider::circle(position.into(), radius / 2.);
 
-    commands
+    let entity = commands
         .spawn()
         .insert(PlayerRocket)
         .insert(Movable {
@@ -210,7 +223,15 @@ pub fn spawn_player_rocket(
                     rocket_exhaust_draw_mode,
                     Transform::default()
                 ));
-        });
+        })
+        .id();
+
+    // Add invulnerability?
+    if let Some(timer) = spawn.invulnerable {
+        commands
+            .entity(entity)
+            .insert(Invulnerable::new(timer));
+    }
 }
 
 // Rocket exhaust flicker system

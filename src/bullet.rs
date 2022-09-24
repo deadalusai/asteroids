@@ -2,9 +2,10 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::SystemLabel;
 use crate::assets::GameAssets;
-use crate::hit::*;
-use crate::movable::*;
-use crate::collidable::*;
+use crate::hit::{HitEvent, distinct_hit_events};
+use crate::movable::{Movable, MovableTorusConstraint};
+use crate::collidable::{Collidable, Collider};
+use crate::invulnerable::{Invulnerable, TestInvulnerable};
 use crate::svg::simple_svg_to_path;
 
 // Bullets
@@ -232,12 +233,15 @@ fn bullet_controller_system(
 
 fn  bullet_collision_system(
     bullets: Query<(Entity, &Collidable), With<Bullet>>,
-    collidables: Query<(Entity, &Collidable), With<BulletCollidable>>,
+    collidables: Query<(Entity, &Collidable, Option<&Invulnerable>), With<BulletCollidable>>,
     mut hit_events: EventWriter<HitEvent>
 )
 {
     for (bullet, b_collidable) in bullets.iter() {
-        for (other, o_collidable) in collidables.iter() {
+        for (other, o_collidable, invulnerable) in collidables.iter() {
+            if invulnerable.is_invulnerable() {
+                continue;
+            }
             if b_collidable.test_collision_with(&o_collidable) {
                 // Collision!
                 hit_events.send(HitEvent(bullet));

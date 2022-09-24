@@ -6,6 +6,7 @@ mod movable;
 mod collidable;
 mod hit;
 mod player;
+mod invulnerable;
 mod bullet;
 mod asteroid;
 mod explosion;
@@ -21,6 +22,7 @@ use assets::*;
 use hud::*;
 use hit::*;
 use player::*;
+use invulnerable::*;
 use bullet::*;
 use asteroid::*;
 use explosion::*;
@@ -57,7 +59,8 @@ fn main() {
         // Game
         .add_plugin(CollidablePlugin)
         .add_plugin(MovablePlugin)
-        .add_plugin(HitEventsPlugin)
+        .add_plugin(HitPlugin)
+        .add_plugin(InvulnerablePlugin)
         .add_plugin(AssetsPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(BulletPlugin)

@@ -231,7 +231,7 @@ fn handle_asteroid_spawn(
             let rotation = random_asteroid_rotation(rng);
             let size = random_asteroid_size(rng);
             let shape = random_asteroid_shape(rng);
-            let spawn = AsteroidSpawn { size, shape, position, velocity, rotation };
+            let spawn = AsteroidSpawn { size, shape, position, velocity, rotation, invulnerable: None };
             spawn_asteroid(commands, &assets.asteroid, spawn);
 
         },
@@ -242,7 +242,7 @@ fn handle_asteroid_spawn(
             let rotation = random_asteroid_rotation(rng);
             let size = random_asteroid_size(rng);
             let shape = random_asteroid_shape(rng);
-            let spawn = AsteroidSpawn { size, shape, position, velocity, rotation };
+            let spawn = AsteroidSpawn { size, shape, position, velocity, rotation, invulnerable: None };
             spawn_asteroid(commands, &assets.asteroid, spawn);
         },
         AsteroidSpawnInstruction::FromDestroyedAsteroid(ev) => {
@@ -253,15 +253,16 @@ fn handle_asteroid_spawn(
                 AsteroidSize::Medium => AsteroidSize::Small,
                 AsteroidSize::Large => AsteroidSize::Medium,
             };
-            spawn_asteroid(commands, &assets.asteroid, AsteroidSpawn { size, position: a.0, velocity: a.1, rotation: a.2, shape: a.3 });
-            spawn_asteroid(commands, &assets.asteroid, AsteroidSpawn { size, position: b.0, velocity: b.1, rotation: b.2, shape: b.3 });
+            let invulnerable = Some(Timer::from_seconds(CHUNK_ASTEROID_INVULNERABLE_SECS, false));
+            spawn_asteroid(commands, &assets.asteroid, AsteroidSpawn { size, position: a.0, velocity: a.1, rotation: a.2, shape: a.3, invulnerable: invulnerable.clone() });
+            spawn_asteroid(commands, &assets.asteroid, AsteroidSpawn { size, position: b.0, velocity: b.1, rotation: b.2, shape: b.3, invulnerable });
         },
         AsteroidSpawnInstruction::AtPosition(position) => {
             let velocity = Vec2::ZERO; // random_asteroid_velocity(rng);
             let rotation = 0.0;
-            let size = AsteroidSize::Large;
-            let shape = AsteroidShapeId::A;
-            let spawn = AsteroidSpawn { size, shape, position, velocity, rotation };
+            let size = random_asteroid_size(rng);
+            let shape = random_asteroid_shape(rng);
+            let spawn = AsteroidSpawn { size, shape, position, velocity, rotation, invulnerable: None };
             spawn_asteroid(commands, &assets.asteroid, spawn);
         },
     };
@@ -271,6 +272,7 @@ static CHILD_ASTEROID_SPAWN_DISTANCE: f32 = 2.0;
 static CHILD_ASTEROID_MIN_ADD_SPEED: f32 = 5.0;
 static CHILD_ASTEROID_MAX_ADD_SPEED: f32 = 15.0;
 static CHUNK_ASTEROID_VELOCITY_REDUCTION: f32 = 0.8;
+static CHUNK_ASTEROID_INVULNERABLE_SECS: f32 = 0.5;
 
 pub fn random_chunk_asteroid_state(rng: &mut rand::rngs::ThreadRng, position: Vec2, velocity: Vec2) -> [(Vec2, Vec2, f32, AsteroidShapeId); 2] {
 

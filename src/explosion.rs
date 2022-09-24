@@ -69,6 +69,7 @@ pub struct ExplosionCollidable;
 
 // Spawning
 
+#[derive(Clone)]
 pub struct SpawnExplosion {
     pub shape_id: ExplosionShapeId,
     pub shape_scale: f32,

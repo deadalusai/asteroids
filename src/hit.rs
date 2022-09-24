@@ -6,9 +6,9 @@ use bevy::prelude::*;
 // Each entity should register a system which listens for these
 // events, and respond when an entity they own appears.
 
-pub struct HitEventsPlugin;
+pub struct HitPlugin;
 
-impl Plugin for HitEventsPlugin {
+impl Plugin for HitPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<HitEvent>();
     }
@@ -19,5 +19,5 @@ pub struct HitEvent(pub Entity);
 // Helpers
 
 pub fn distinct_hit_events<'a>(events: &'a mut bevy::prelude::EventReader<crate::hit::HitEvent>) -> impl Iterator<Item=&'a crate::hit::HitEvent> {
-    crate::util::distinct_by(events.iter(), |crate::hit::HitEvent(e)| e)
+    crate::util::distinct_by(events.iter(), |e| e.0)
 }

@@ -6,6 +6,7 @@ use crate::SystemLabel;
 use crate::assets::GameAssets;
 use crate::bullet::BulletCollidable;
 use crate::hit::{HitEvent, distinct_hit_events};
+use crate::invulnerable::{Invulnerable, TestInvulnerable};
 use crate::movable::{Movable, MovableTorusConstraint};
 use crate::collidable::{Collidable, Collider};
 use crate::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
@@ -102,13 +103,14 @@ fn asteroid_scale(size: AsteroidSize) -> f32 {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct AsteroidSpawn {
     pub size: AsteroidSize,
     pub shape: AsteroidShapeId,
     pub position: Vec2,
     pub velocity: Vec2,
     pub rotation: f32,
+    pub invulnerable: Option<Timer>,
 }
 
 pub fn spawn_asteroid(
@@ -134,7 +136,7 @@ pub fn spawn_asteroid(
     let radius = scale * diameter / 2.;
     let collider = Collider::circle(position.into(), radius);
 
-    commands
+    let entity = commands
         .spawn()
         .insert(Asteroid {
             size: spawn.size,
@@ -151,19 +153,29 @@ pub fn spawn_asteroid(
         .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
         // Collision detection
         .insert(Collidable { collider })
-        .insert(BulletCollidable);
+        .insert(BulletCollidable)
+        .id();
+
+    if let Some(timer) = spawn.invulnerable {
+        commands
+            .entity(entity)
+            .insert(Invulnerable::new(timer));
+    }
 }
 
 // Collision detection
 
 fn  asteroid_collision_system(
     asteroids: Query<(Entity, &Collidable), With<Asteroid>>,
-    collidables: Query<(Entity, &Collidable), With<AsteroidCollidable>>,
+    collidables: Query<(Entity, &Collidable, Option<&Invulnerable>), With<AsteroidCollidable>>,
     mut hit_events: EventWriter<HitEvent>
 )
 {
     for (asteroid, bullet) in asteroids.iter() {
-        for (other, target) in collidables.iter() {
+        for (other, target, invulnerable) in collidables.iter() {
+            if invulnerable.is_invulnerable() {
+                continue;
+            }
             if bullet.test_collision_with(&target) {
                 // Collision!
                 hit_events.send(HitEvent(asteroid));
