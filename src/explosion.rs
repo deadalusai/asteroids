@@ -113,7 +113,7 @@ pub fn spawn_explosion(
                 velocity,
                 acceleration: None,
                 heading_angle: spawn.heading_angle,
-                rotational_velocity: 0.0, // spawn.rotational_velocity,
+                rotational_velocity: spawn.rotational_velocity,
                 rotational_acceleration: None,
             })
             // Rendering
