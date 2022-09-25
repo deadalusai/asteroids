@@ -155,12 +155,12 @@ fn alien_hit_system(
             commands.entity(entity).despawn_recursive();
             // Start the explosion
             spawn_explosion(&mut commands, &mut rng, &assets.explosion, SpawnExplosion {
-                shape_id: ExplosionShapeId::AsteroidDebris,
+                shape_id: ExplosionShapeId::UfoDebris,
                 shape_scale: 1.0,
                 position: movable.position,
                 velocity: movable.velocity,
                 heading_angle: movable.heading_angle,
-                rotational_velocity: movable.rotational_velocity,
+                rotational_velocity: std::f32::consts::PI,
                 despawn_after_secs: PLAYER_ALIEN_EXPLOSION_DESPAWN_AFTER_SECS,
             });
             // Send events
