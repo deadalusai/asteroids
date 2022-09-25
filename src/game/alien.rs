@@ -44,18 +44,25 @@ pub struct AlienUfoDestroyedEvent;
 // Setup
 
 pub struct AlienAssets {
-    alien_dimension: (f32, f32), // (w, h) of the rocket shape
-    alien_shape: Path,
+    alien_ufo_dimension: (f32, f32), // (w, h) of the rocket shape
+    alien_ufo_shape: Path,
 }
 
 pub fn create_alien_assets() -> AlienAssets {
     // See: https://yqnn.github.io/svg-path-editor/
-    let alien_dimension = (4.0, 6.0);
-    let alien_path = "M 3 0 L -2 -2 M -1 -1.6 L -1 1.6 M 3 0 L -2 2";
+    let alien_ufo_dimension = (10.0, 6.0);
+    let alien_ufo_path = "
+        M 5 0
+        C 2 -2 -2 -2 -5 0
+        L -5 1
+        C -2 3 2 3 5 1 L 5 0
+        M 3 -1
+        Q 0 -5 -3 -1
+    ";
 
     AlienAssets {
-        alien_dimension,
-        alien_shape: simple_svg_to_path(alien_path),
+        alien_ufo_dimension,
+        alien_ufo_shape: simple_svg_to_path(alien_ufo_path),
     }
 }
 
@@ -92,23 +99,19 @@ pub fn spawn_alien_ufo(
      // Spawn stationary, in the middle of the screen
     let position = spawn.position;
     let velocity = spawn.velocity;
-    let (_, alien_shape_height) = assets.alien_dimension;
-
-    let initial_heading_angle = std::f32::consts::PI / 2.0; // straight up
+    let (width, height) = assets.alien_ufo_dimension;
 
     // Rocket
     let alien_color = Color::rgba(1., 1., 1., 1.);
     let alien_draw_mode = DrawMode::Stroke(StrokeMode::new(alien_color, LINE_WIDTH));
 
     // Transform
-    let transform = Transform::from_translation(Vec3::new(position.x, position.y, ALIEN_Z))
-        .with_rotation(Quat::from_rotation_z(initial_heading_angle));
+    let transform = Transform::from_translation(Vec3::new(position.x, position.y, ALIEN_Z));
     
     // Collision detection
-    // NOTE: Currently using a spherical collision box, shrunk down to fit within the hull
-    // TODO(benf): Make a triangular Polygon collision shape
-    let radius = alien_shape_height / 2.;
-    let collider = Collider::circle(position.into(), radius / 2.);
+    let arm = Vec2::new(width / 2., 0.);
+    let radius = height / 2.;
+    let collider = Collider::capsule(position, arm, radius);
 
     commands
         .spawn()
@@ -117,7 +120,7 @@ pub fn spawn_alien_ufo(
             position,
             velocity,
             acceleration: None,
-            heading_angle: initial_heading_angle,
+            heading_angle: 0.0,
             rotational_velocity: 0.,
             rotational_acceleration: None,
         })
@@ -128,7 +131,7 @@ pub fn spawn_alien_ufo(
         .insert(Collidable { collider })
         // Rendering
         .insert_bundle(GeometryBuilder::build_as(
-            &assets.alien_shape,
+            &assets.alien_ufo_shape,
             alien_draw_mode,
             transform
         ));

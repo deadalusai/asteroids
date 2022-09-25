@@ -47,7 +47,7 @@ impl Plugin for GameManagerPlugin {
     }
 }
 
-const ALIEN_SPAWN_MIN_SECS: f32 = 5.0;
+const ALIEN_SPAWN_MIN_SECS: f32 = 25.0;
 const ALIEN_SPAWN_MAX_SECS: f32 = 60.0;
 
 fn game_setup_system(mut commands: Commands) {
@@ -315,7 +315,7 @@ fn game_effects_system(
     }
 }
 
-const ALIEN_UFO_SPEED: f32 = 50.0;
+const ALIEN_UFO_SPEED: f32 = 35.0;
 
 fn handle_alien_ufo_spawn(
     commands: &mut Commands,
