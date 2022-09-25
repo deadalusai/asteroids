@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::AppState;
 use super::FrameStage;
-use super::assets::GameAssets;
 use super::hit::{HitEvent, distinct_hit_events};
 use super::movable::{Movable, MovableTorusConstraint};
 use super::collidable::{Collidable, Collider};
@@ -19,11 +18,6 @@ impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_update(AppState::Game)
-                .with_system(
-                    bullet_controller_system
-                        .after(FrameStage::Input)
-                        .after(FrameStage::Movement)
-                )
                 .with_system(
                     bullet_collision_system
                         .label(FrameStage::Collision)
@@ -158,7 +152,7 @@ fn bullet_despawn_system(
 // Fire control
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum UpdateResult {
+pub enum FireResult {
     None,
     FireBullet,
 }
@@ -174,22 +168,23 @@ enum BulletControllerState {
 pub struct BulletController {
     timer: Timer,
     state: BulletControllerState,
-    fire_count: i32,
-    bullet_start_offset: f32,
-    bullet_speed: f32,
-    bullet_despawn_after_secs: f32,
+    pub fire_count: i32,
+    pub spawn_translation: Option<Vec2>,
 }
 
 impl BulletController {
-    pub fn new(fire_rate: f32, bullet_start_offset: f32, bullet_speed: f32, bullet_despawn_after_secs: f32) -> Self {
+    pub fn new(fire_rate: f32) -> Self {
         Self {
             state: BulletControllerState::None,
             fire_count: 0,
             timer: Timer::from_seconds(1.0 / fire_rate, true),
-            bullet_start_offset,
-            bullet_speed,
-            bullet_despawn_after_secs,
+            spawn_translation: None,
         }
+    }
+
+    pub fn with_spawn_translation(mut self, translation: Vec2) -> Self {
+        self.spawn_translation = Some(translation);
+        self
     }
 
     pub fn try_set_firing_state(&mut self, firing: bool) {
@@ -205,20 +200,20 @@ impl BulletController {
         }
     }
 
-    fn update(&mut self, time: &Time) -> UpdateResult {
+    pub fn update(&mut self, time: &Time) -> FireResult {
         self.timer.tick(time.delta());
         match self.state {
-            BulletControllerState::None => UpdateResult::None,
+            BulletControllerState::None => FireResult::None,
             BulletControllerState::Firing => {
                 // Fire immediately for the first bullet, and therafter
                 // on the cadence set by the timer
                 let should_fire = self.fire_count == 0 || self.timer.just_finished();
                 if should_fire {
                     self.fire_count += 1;
-                    UpdateResult::FireBullet
+                    FireResult::FireBullet
                 }
                 else {
-                    UpdateResult::None
+                    FireResult::None
                 }
             },
             BulletControllerState::Cooldown => {
@@ -228,26 +223,8 @@ impl BulletController {
                 if cooldown_complete {
                     self.state = BulletControllerState::None;
                 }
-                UpdateResult::None
+                FireResult::None
             },
-        }
-    }
-}
-
-fn bullet_controller_system(
-    time: Res<Time>,
-    assets: Res<GameAssets>,
-    mut commands: Commands,
-    mut query: Query<(&Movable, &mut BulletController)>
-) {
-    for (movable, mut controller) in query.iter_mut() {
-        if controller.update(&time) == UpdateResult::FireBullet {
-            spawn_bullet(&mut commands, &assets.bullet, BulletSpawn {
-                position: movable.position + movable.heading_normal() * controller.bullet_start_offset,
-                velocity: movable.velocity + movable.heading_normal() * controller.bullet_speed,
-                heading_angle: movable.heading_angle,
-                despawn_after_secs: controller.bullet_despawn_after_secs,
-            });
         }
     }
 }

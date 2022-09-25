@@ -7,7 +7,7 @@ use super::hit::{HitEvent, distinct_hit_events};
 use super::movable::{Movable, MovableTorusConstraint};
 use super::collidable::{Collidable, Collider};
 use super::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
-use super::bullet::{BulletController, BulletCollidable};
+use super::bullet::{BulletController, BulletCollidable, FireResult, BulletSpawn, spawn_bullet};
 use super::svg::simple_svg_to_path;
 
 // Player's Rocket
@@ -24,6 +24,10 @@ impl Plugin for AlienPlugin {
         app.add_event::<AlienUfoDestroyedEvent>();
         app.add_system_set(
             SystemSet::on_update(AppState::Game)
+                .with_system(
+                    alien_bullet_system
+                        .after(FrameStage::Movement)
+                )
                 .with_system(
                     alien_hit_system
                         .label(FrameStage::CollisionEffect)
@@ -113,6 +117,10 @@ pub fn spawn_alien_ufo(
     let radius = height / 2.;
     let collider = Collider::capsule(position, arm, radius);
 
+    // Bullet control
+    let bullet_fire_rate = ALIEN_FIRE_RATE;
+    let bullet_spawn_translation = Vec2::new(radius, 0.0);
+
     commands
         .spawn()
         .insert(AlienUfo)
@@ -125,7 +133,7 @@ pub fn spawn_alien_ufo(
             rotational_acceleration: None,
         })
         .insert(MovableTorusConstraint { radius })
-        .insert(BulletController::new(ALIEN_FIRE_RATE, radius, ALIEN_BULLET_SPEED, ALIEN_BULLET_MAX_AGE_SECS))
+        .insert(BulletController::new(bullet_fire_rate).with_spawn_translation(bullet_spawn_translation))
         // Collision detection
         .insert(BulletCollidable)
         .insert(Collidable { collider })
@@ -135,6 +143,29 @@ pub fn spawn_alien_ufo(
             alien_draw_mode,
             transform
         ));
+}
+
+// Bullet system
+
+fn alien_bullet_system(
+    // time: Res<Time>,
+    // assets: Res<GameAssets>,
+    // mut commands: Commands,
+    // mut query: Query<(&Movable, &mut BulletController), With<AlienUfo>>
+) {
+    // for (movable, mut controller) in query.iter_mut() {
+    //     if controller.update(&time) == UpdateResult::FireBullet {
+
+    //         let translation = movable.heading_normal().rotate(controller.spawn_translation.unwrap_or_default());
+
+    //         spawn_bullet(&mut commands, &assets.bullet, BulletSpawn {
+    //             position: movable.position + translation,
+    //             velocity: movable.velocity + movable.heading_normal() * ALIEN_BULLET_SPEED,
+    //             heading_angle: movable.heading_angle,
+    //             despawn_after_secs: ALIEN_BULLET_MAX_AGE_SECS,
+    //         });
+    //     }
+    // }
 }
 
 // Destruction system

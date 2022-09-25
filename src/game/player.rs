@@ -9,7 +9,7 @@ use super::hit::{HitEvent, distinct_hit_events};
 use super::movable::{Movable, MovableTorusConstraint, Acceleration, AcceleratingTo};
 use super::collidable::{Collidable, Collider};
 use super::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
-use super::bullet::BulletController;
+use super::bullet::{BulletController, FireResult, BulletSpawn, spawn_bullet};
 use super::invulnerable::Invulnerable;
 use super::svg::simple_svg_to_path;
 use super::util::*;
@@ -39,6 +39,10 @@ impl Plugin for PlayerPlugin {
                 .with_system(
                     player_keyboard_event_system
                         .label(FrameStage::Input)
+                )
+                .with_system(
+                    player_bullet_system
+                        .after(FrameStage::Movement)
                 )
                 .with_system(
                     player_update_movable_system
@@ -239,6 +243,10 @@ pub fn spawn_player_rocket(
     let radius = rocket_shape_height / 2.;
     let collider = Collider::circle(position.into(), radius / 2.);
 
+    // Bullet control
+    let bullet_fire_rate = ROCKET_FIRE_RATE;
+    let bullet_spawn_translation = Vec2::new(radius, 0.0);
+
     let entity = commands
         .spawn()
         .insert(PlayerRocket::default())
@@ -251,7 +259,7 @@ pub fn spawn_player_rocket(
             rotational_acceleration: None,
         })
         .insert(MovableTorusConstraint { radius })
-        .insert(BulletController::new(ROCKET_FIRE_RATE, radius, ROCKET_BULLET_SPEED, ROCKET_BULLET_MAX_AGE_SECS))
+        .insert(BulletController::new(bullet_fire_rate).with_spawn_translation(bullet_spawn_translation))
         // Collision detection
         .insert(AsteroidCollidable)
         .insert(Collidable { collider })
@@ -278,6 +286,28 @@ pub fn spawn_player_rocket(
         commands
             .entity(entity)
             .insert(Invulnerable::new(timer));
+    }
+}
+
+// Bullet system
+
+fn player_bullet_system(
+    time: Res<Time>,
+    assets: Res<GameAssets>,
+    mut commands: Commands,
+    mut query: Query<(&Movable, &mut BulletController), With<PlayerRocket>>
+) {
+    for (movable, mut controller) in query.iter_mut() {
+        if controller.update(&time) == FireResult::FireBullet {
+            let translation = movable.heading_normal().rotate(controller.spawn_translation.unwrap_or_default());
+            let velocity = movable.heading_normal() * ROCKET_BULLET_SPEED;
+            spawn_bullet(&mut commands, &assets.bullet, BulletSpawn {
+                position: movable.position + translation,
+                velocity: movable.velocity + velocity,
+                heading_angle: movable.heading_angle,
+                despawn_after_secs: ROCKET_BULLET_MAX_AGE_SECS,
+            });
+        }
     }
 }
 
