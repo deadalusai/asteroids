@@ -7,13 +7,14 @@ use super::hit::{HitEvent, distinct_hit_events};
 use super::movable::{Movable, MovableTorusConstraint};
 use super::collidable::{Collidable, Collider};
 use super::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
-use super::bullet::{BulletController, BulletCollidable, FireResult, BulletSpawn, spawn_bullet};
+use super::bullet::{BulletController, BulletCollidable, BulletFireResult, BulletSpawn, spawn_bullet, BulletSource};
+use super::player::PlayerRocket;
 use super::svg::simple_svg_to_path;
 
 // Player's Rocket
 
-const ALIEN_BULLET_SPEED: f32 = 250.0;
-const ALIEN_BULLET_MAX_AGE_SECS: f32 = 0.8;
+const ALIEN_BULLET_SPEED: f32 = 125.0;
+const ALIEN_BULLET_MAX_AGE_SECS: f32 = 2.0;
 const ALIEN_FIRE_RATE: f32 = 0.5; // per second
 const ALIEN_Z: f32 = 10.0;
 
@@ -118,8 +119,8 @@ pub fn spawn_alien_ufo(
     let collider = Collider::capsule(position, arm, radius);
 
     // Bullet control
-    let bullet_fire_rate = ALIEN_FIRE_RATE;
-    let bullet_spawn_translation = Vec2::new(radius, 0.0);
+    let mut bullet_controller = BulletController::new(ALIEN_FIRE_RATE);
+    bullet_controller.try_set_firing_state(true);
 
     commands
         .spawn()
@@ -133,9 +134,9 @@ pub fn spawn_alien_ufo(
             rotational_acceleration: None,
         })
         .insert(MovableTorusConstraint { radius })
-        .insert(BulletController::new(bullet_fire_rate).with_spawn_translation(bullet_spawn_translation))
+        .insert(bullet_controller)
         // Collision detection
-        .insert(BulletCollidable)
+        .insert(BulletCollidable { source: BulletSource::PlayerRocket })
         .insert(Collidable { collider })
         // Rendering
         .insert_bundle(GeometryBuilder::build_as(
@@ -148,24 +149,37 @@ pub fn spawn_alien_ufo(
 // Bullet system
 
 fn alien_bullet_system(
-    // time: Res<Time>,
-    // assets: Res<GameAssets>,
-    // mut commands: Commands,
-    // mut query: Query<(&Movable, &mut BulletController), With<AlienUfo>>
+    time: Res<Time>,
+    assets: Res<GameAssets>,
+    mut commands: Commands,
+    mut ufo_query: Query<(&Movable, &mut BulletController), With<AlienUfo>>,
+    player_rocket_query: Query<&Movable, With<PlayerRocket>>
 ) {
-    // for (movable, mut controller) in query.iter_mut() {
-    //     if controller.update(&time) == UpdateResult::FireBullet {
+    // Find a target to fire at
+    let target = match player_rocket_query.iter().next() {
+        Some(m) => m,
+        None => return,
+    };
 
-    //         let translation = movable.heading_normal().rotate(controller.spawn_translation.unwrap_or_default());
+    for (source, mut controller) in ufo_query.iter_mut() {
+        if controller.update(&time) == BulletFireResult::FireBullet {
+            let firing_normal = calculate_firing_normal(source, target);
+            let translation = controller.spawn_translation.unwrap_or_default();
+            let velocity = firing_normal * ALIEN_BULLET_SPEED;
+            spawn_bullet(&mut commands, &assets.bullet, BulletSpawn {
+                source: BulletSource::AlienUfo,
+                position: source.position + translation,
+                velocity: source.velocity + velocity,
+                heading_angle: Vec2::X.angle_between(firing_normal),
+                despawn_after_secs: ALIEN_BULLET_MAX_AGE_SECS,
+            });
+        }
+    }
+}
 
-    //         spawn_bullet(&mut commands, &assets.bullet, BulletSpawn {
-    //             position: movable.position + translation,
-    //             velocity: movable.velocity + movable.heading_normal() * ALIEN_BULLET_SPEED,
-    //             heading_angle: movable.heading_angle,
-    //             despawn_after_secs: ALIEN_BULLET_MAX_AGE_SECS,
-    //         });
-    //     }
-    // }
+fn calculate_firing_normal(source: &Movable, target: &Movable) -> Vec2 {
+    // Find the vector between these two entities
+    (target.position - source.position).normalize()
 }
 
 // Destruction system

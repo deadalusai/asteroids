@@ -66,18 +66,28 @@ fn destroy_bullets_system(mut commands: Commands, query: Query<Entity, With<Bull
 
 // Entity
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum BulletSource {
+    PlayerRocket,
+    AlienUfo
+}
+
 #[derive(Component)]
 pub struct Bullet {
+    source: BulletSource,
     despawn_timer: Timer,
 }
 
 /// Marker component which indicates that an entity should be considered for bullet collisions
 #[derive(Component)]
-pub struct BulletCollidable;
+pub struct BulletCollidable {
+    pub source: BulletSource
+}
 
 // Spawning
 
 pub struct BulletSpawn {
+    pub source: BulletSource,
     pub position: Vec2,
     pub velocity: Vec2,
     pub heading_angle: f32,
@@ -106,6 +116,7 @@ pub fn spawn_bullet(
     commands
         .spawn()
         .insert(Bullet {
+            source: spawn.source,
             despawn_timer: Timer::from_seconds(spawn.despawn_after_secs, false),
         })
         .insert(Movable {
@@ -128,9 +139,9 @@ pub fn spawn_bullet(
 }
 
 fn bullet_despawn_system(
+    time: Res<Time>,
     mut commands: Commands,
     mut hit_events: EventReader<HitEvent>,
-    time: Res<Time>,
     mut query: Query<(Entity, &mut Bullet)>
 ) {
     // Despawn bullets which have hit something
@@ -152,7 +163,7 @@ fn bullet_despawn_system(
 // Fire control
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum FireResult {
+pub enum BulletFireResult {
     None,
     FireBullet,
 }
@@ -200,20 +211,20 @@ impl BulletController {
         }
     }
 
-    pub fn update(&mut self, time: &Time) -> FireResult {
+    pub fn update(&mut self, time: &Time) -> BulletFireResult {
         self.timer.tick(time.delta());
         match self.state {
-            BulletControllerState::None => FireResult::None,
+            BulletControllerState::None => BulletFireResult::None,
             BulletControllerState::Firing => {
                 // Fire immediately for the first bullet, and therafter
                 // on the cadence set by the timer
                 let should_fire = self.fire_count == 0 || self.timer.just_finished();
                 if should_fire {
                     self.fire_count += 1;
-                    FireResult::FireBullet
+                    BulletFireResult::FireBullet
                 }
                 else {
-                    FireResult::None
+                    BulletFireResult::None
                 }
             },
             BulletControllerState::Cooldown => {
@@ -223,7 +234,7 @@ impl BulletController {
                 if cooldown_complete {
                     self.state = BulletControllerState::None;
                 }
-                FireResult::None
+                BulletFireResult::None
             },
         }
     }
@@ -232,20 +243,23 @@ impl BulletController {
 // Collision detection
 
 fn  bullet_collision_system(
-    bullets: Query<(Entity, &Collidable), With<Bullet>>,
-    collidables: Query<(Entity, &Collidable, Option<&Invulnerable>), With<BulletCollidable>>,
+    bullets: Query<(Entity, &Bullet, &Collidable)>,
+    collidables: Query<(Entity, &BulletCollidable, &Collidable, Option<&Invulnerable>)>,
     mut hit_events: EventWriter<HitEvent>
 )
 {
-    for (bullet, b_collidable) in bullets.iter() {
-        for (other, o_collidable, invulnerable) in collidables.iter() {
+    for (b_entity, b_bullet, b_collidable) in bullets.iter() {
+        for (o_entity, o_bullet_collidable, o_collidable, invulnerable) in collidables.iter() {
             if invulnerable.is_invulnerable() {
+                continue;
+            }
+            if b_bullet.source != o_bullet_collidable.source {
                 continue;
             }
             if b_collidable.test_collision_with(&o_collidable) {
                 // Collision!
-                hit_events.send(HitEvent(bullet));
-                hit_events.send(HitEvent(other));
+                hit_events.send(HitEvent(b_entity));
+                hit_events.send(HitEvent(o_entity));
             }
         }
     }

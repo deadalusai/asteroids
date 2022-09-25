@@ -5,7 +5,7 @@ use rand::thread_rng;
 use crate::AppState;
 use super::FrameStage;
 use super::assets::GameAssets;
-use super::bullet::BulletCollidable;
+use super::bullet::{BulletCollidable, BulletSource};
 use super::hit::{HitEvent, distinct_hit_events};
 use super::invulnerable::{Invulnerable, TestInvulnerable};
 use super::movable::{Movable, MovableTorusConstraint};
@@ -174,7 +174,7 @@ pub fn spawn_asteroid(
         .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
         // Collision detection
         .insert(Collidable { collider })
-        .insert(BulletCollidable)
+        .insert(BulletCollidable { source: BulletSource::PlayerRocket })
         .id();
 
     if let Some(timer) = spawn.invulnerable {

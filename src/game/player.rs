@@ -9,7 +9,7 @@ use super::hit::{HitEvent, distinct_hit_events};
 use super::movable::{Movable, MovableTorusConstraint, Acceleration, AcceleratingTo};
 use super::collidable::{Collidable, Collider};
 use super::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
-use super::bullet::{BulletController, FireResult, BulletSpawn, spawn_bullet};
+use super::bullet::{BulletController, BulletFireResult, BulletSpawn, BulletSource, BulletCollidable, spawn_bullet};
 use super::invulnerable::Invulnerable;
 use super::svg::simple_svg_to_path;
 use super::util::*;
@@ -262,6 +262,7 @@ pub fn spawn_player_rocket(
         .insert(BulletController::new(bullet_fire_rate).with_spawn_translation(bullet_spawn_translation))
         // Collision detection
         .insert(AsteroidCollidable)
+        .insert(BulletCollidable { source: BulletSource::AlienUfo })
         .insert(Collidable { collider })
         // Rendering
         .insert_bundle(GeometryBuilder::build_as(
@@ -298,10 +299,11 @@ fn player_bullet_system(
     mut query: Query<(&Movable, &mut BulletController), With<PlayerRocket>>
 ) {
     for (movable, mut controller) in query.iter_mut() {
-        if controller.update(&time) == FireResult::FireBullet {
+        if controller.update(&time) == BulletFireResult::FireBullet {
             let translation = movable.heading_normal().rotate(controller.spawn_translation.unwrap_or_default());
             let velocity = movable.heading_normal() * ROCKET_BULLET_SPEED;
             spawn_bullet(&mut commands, &assets.bullet, BulletSpawn {
+                source: BulletSource::PlayerRocket,
                 position: movable.position + translation,
                 velocity: movable.velocity + velocity,
                 heading_angle: movable.heading_angle,
