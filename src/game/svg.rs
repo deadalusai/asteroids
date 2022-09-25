@@ -39,8 +39,8 @@ trait SvgParse {
 
 impl<'a, T: Iterator<Item=&'a str>> SvgParse for T {
     fn parse_point(&mut self) -> Result<SvgPoint, BoxError> {
-        let a = self.next().ok_or("Expected first coordinate")?.parse::<f32>()?;
-        let b = self.next().ok_or("Expected second coordinate")?.parse::<f32>()?;
+        let a = self.next().ok_or("x coord")?.parse::<f32>()?;
+        let b = self.next().ok_or("y coord")?.parse::<f32>()?;
         Ok(SvgPoint(a, b))
     }
 
