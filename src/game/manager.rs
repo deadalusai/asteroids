@@ -54,7 +54,7 @@ fn game_setup_system(mut commands: Commands) {
     let mut rng = thread_rng();
     let alien_spawn_secs = ALIEN_SPAWN_MIN_SECS + rng.random_f32() * (ALIEN_SPAWN_MAX_SECS - ALIEN_SPAWN_MIN_SECS);
     let game_init = GameInit {
-        asteroid_count: 1,
+        asteroid_count: 8,
         player_lives: 3,
         alien_spawn_secs,
     };
