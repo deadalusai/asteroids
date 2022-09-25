@@ -39,7 +39,7 @@ fn game_over_setup_system(
     asset_server: Res<AssetServer>,
     game_results: Res<GameResults>
 ) {
-    let font_light = asset_server.load("fonts/RedHatMono-Light.ttf");
+    let font_light = asset_server.load(crate::asset_paths::FONT_MONO_LIGHT);
 
     let margin_style = Style {
         margin: UiRect::all(Val::Px(20.0)),

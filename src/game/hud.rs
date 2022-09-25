@@ -40,7 +40,7 @@ struct DebugText;
 
 fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     
-    let font_light = asset_server.load("fonts/RedHatMono-Light.ttf");
+    let font_light = asset_server.load(crate::asset_paths::FONT_MONO_LIGHT);
 
     let status_text_bundle =
         TextBundle::from_sections([

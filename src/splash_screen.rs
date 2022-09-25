@@ -31,8 +31,8 @@ struct MenuRoot;
 // Menu
 
 fn menu_setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let font_light = asset_server.load("fonts/RedHatMono-Light.ttf");
-    let font_bold = asset_server.load("fonts/RedHatMono-Bold.ttf");
+    let font_light = asset_server.load(crate::asset_paths::FONT_MONO_LIGHT);
+    let font_bold = asset_server.load(crate::asset_paths::FONT_MONO_BOLD);
 
     let margin_style = Style {
         margin: UiRect::all(Val::Px(20.0)),

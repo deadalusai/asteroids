@@ -1,5 +1,6 @@
 #![feature(drain_filter)]
 
+mod asset_paths;
 mod game;
 mod splash_screen;
 mod pause_screen;
