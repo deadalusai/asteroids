@@ -473,10 +473,19 @@ fn game_keyboard_system(
     mut game: ResMut<GameManager>,
     mut app_state: ResMut<State<AppState>>,
 ) {
-    if kb.just_released(KeyCode::A) {
+    // Spawn a single asteroid
+    if kb.just_released(KeyCode::O) {
         game.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::AtPosition(Vec2::new(0., 20.)));
     }
 
+    // Spawn a hundred asteroids
+    if kb.just_released(KeyCode::P) {
+        for _ in 0..100 {
+            game.schedule_asteroid_to_spawn(0.0, AsteroidSpawnInstruction::OffScreen);
+        }
+    }
+
+    // Pause
     if kb.clear_just_released(KeyCode::Escape) {
         app_state.push(AppState::Pause).unwrap();
     }
