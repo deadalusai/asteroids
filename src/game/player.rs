@@ -12,7 +12,6 @@ use super::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
 use super::bullet::{BulletController, BulletFireResult, BulletSpawn, BulletSource, BulletCollidable, spawn_bullet};
 use super::invulnerable::Invulnerable;
 use super::svg::simple_svg_to_path;
-use super::util::*;
 
 // Player's Rocket
 
@@ -34,34 +33,26 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PlayerRocketDestroyedEvent>();
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(
-                    player_keyboard_event_system
-                        .label(FrameStage::Input)
-                )
-                .with_system(
-                    player_bullet_system
-                        .after(FrameStage::Movement)
-                )
-                .with_system(
-                    player_update_movable_system
-                        .after(player_keyboard_event_system)
-                )
-                .with_system(
-                    rocket_exhaust_update_system
-                        .after(player_keyboard_event_system)
-                )
-                .with_system(
-                    player_hit_system
-                        .label(FrameStage::CollisionEffect)
-                        .after(FrameStage::Collision)
-                )
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Game)
-                .with_system(player_teardown_system)
-        );
+        app.add_systems((
+            player_keyboard_event_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::Input),
+            player_bullet_system
+                .in_set(OnUpdate(AppState::Game))
+                .after(FrameStage::Movement),
+            player_update_movable_system
+                .in_set(OnUpdate(AppState::Game))
+                .after(player_keyboard_event_system),
+            rocket_exhaust_update_system
+                .in_set(OnUpdate(AppState::Game))
+                .after(player_keyboard_event_system),
+            player_hit_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::CollisionEffect)
+                .after(FrameStage::Collision),
+            player_teardown_system
+                .in_schedule(OnExit(AppState::Game))
+        ));
     }
 }
 
@@ -167,17 +158,17 @@ fn player_update_movable_system(
 fn rocket_exhaust_update_system(
     time: Res<Time>,
     rocket_query: Query<(&PlayerRocket, &Children), With<PlayerRocket>>,
-    mut exhaust_query: Query<&mut DrawMode, With<PlayerRocketExhaust>>
+    mut exhaust_query: Query<&mut Stroke, With<PlayerRocketExhaust>>
 ) {
     let t_secs = time.elapsed_seconds();
     for (rocket, children) in rocket_query.iter() {
         // Update child components
         for &child in children.iter() {
-            if let Ok(mut draw_mode) = exhaust_query.get_mut(child) {
+            if let Ok(mut stroke) = exhaust_query.get_mut(child) {
                 let new_alpha =
                     if rocket.accelerating { exhaust_opacity_over_t(t_secs) }
                     else { 0. };
-                update_drawmode_alpha(&mut draw_mode, new_alpha);
+                stroke.color.set_a(new_alpha);
             }
         }
     }
@@ -226,11 +217,11 @@ pub fn spawn_player_rocket(
 
     // Rocket
     let rocket_color = Color::rgba(1., 1., 1., 1.);
-    let rocket_draw_mode = DrawMode::Stroke(StrokeMode::new(rocket_color, LINE_WIDTH));
+    let rocket_stroke = Stroke::new(rocket_color, LINE_WIDTH);
 
     // Rocket exhaust
     let rocket_exhaust_color = Color::rgba(1., 1., 1., 0.);
-    let rocket_exhaust_draw_mode = DrawMode::Stroke(StrokeMode::new(rocket_exhaust_color, LINE_WIDTH));
+    let rocket_exhaust_stroke = Stroke::new(rocket_exhaust_color, LINE_WIDTH);
     
     // Transform
     let transform = Transform::from_translation(Vec3::new(position.x, position.y, ROCKET_Z))
@@ -264,20 +255,21 @@ pub fn spawn_player_rocket(
             BulletCollidable { source: BulletSource::AlienUfo },
             Collidable { collider },
             // Rendering
-            GeometryBuilder::build_as(
-                &assets.rocket_shape,
-                rocket_draw_mode,
-                transform
-            ),
+            ShapeBundle {
+                path: Path(assets.rocket_shape.0.clone()),
+                transform,
+                ..default()
+            },
+            rocket_stroke,
         ))
         .with_children(|child_commands| {
             child_commands.spawn((
                 PlayerRocketExhaust,
-                GeometryBuilder::build_as(
-                    &assets.rocket_exhaust_shape,
-                    rocket_exhaust_draw_mode,
-                    Transform::default()
-                )
+                ShapeBundle {
+                    path: Path(assets.rocket_exhaust_shape.0.clone()),
+                    ..default()
+                },
+                rocket_exhaust_stroke,
             ));
         })
         .id();

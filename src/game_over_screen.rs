@@ -8,18 +8,14 @@ pub struct GameOverScreenPlugin;
 
 impl Plugin for GameOverScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(AppState::GameOver)
-                .with_system(game_over_setup_system)
-        );
-        app.add_system_set(
-            SystemSet::on_update(AppState::GameOver)
-                .with_system(game_over_keyboard_system)
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::GameOver)
-                .with_system(game_over_cleanup_system)
-        );
+        app.add_systems((
+            game_over_setup_system
+                .in_schedule(OnEnter(AppState::GameOver)),
+            game_over_keyboard_system
+                .in_set(OnUpdate(AppState::GameOver)),
+            game_over_cleanup_system
+                .in_schedule(OnExit(AppState::GameOver)),
+        ));
     }
 }
 
@@ -114,9 +110,9 @@ fn game_over_cleanup_system(mut commands: Commands, fragments: Query<Entity, Wit
 
 fn game_over_keyboard_system(
     mut kb: ResMut<Input<KeyCode>>,
-    mut app_state: ResMut<State<AppState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
 ) {
     if kb.clear_just_released(KeyCode::Escape) {
-        app_state.replace(AppState::Menu).unwrap();
+        next_app_state.set(AppState::Menu);
     }
 }

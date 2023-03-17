@@ -9,36 +9,36 @@ pub struct MovablePlugin;
 
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
-        let _movable_system = ||
+        let _movable_system = |in_state: AppState|
             movable_system
-                .label(FrameStage::Movement)
+                .in_set(OnUpdate(in_state))
+                .in_set(FrameStage::Movement)
                 .after(FrameStage::Input);
 
-        let _movable_torus_constraint_system = ||
+        let _movable_torus_constraint_system = |in_state: AppState|
             movable_torus_constraint_system
-                .label(FrameStage::Movement)
+                .in_set(OnUpdate(in_state))
+                .in_set(FrameStage::Movement)
                 .after(FrameStage::Start)
                 .after(movable_system);
 
-        let _movable_update_transform_system = ||
-            movable_update_transform_system 
-                .label(FrameStage::Movement)
+        let _movable_update_transform_system = |in_state: AppState|
+            movable_update_transform_system
+                .in_set(OnUpdate(in_state))
+                .in_set(FrameStage::Movement)
                 .after(movable_torus_constraint_system);
 
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(_movable_system())
-                .with_system(_movable_torus_constraint_system())
-                .with_system(_movable_update_transform_system())
-        );
-
-        // Process movable entities on GameOver
-        app.add_system_set(
-            SystemSet::on_update(AppState::GameOver)
-                .with_system(_movable_system())
-                .with_system(_movable_torus_constraint_system())
-                .with_system(_movable_update_transform_system())
-        );
+        app.add_systems((
+            _movable_system(AppState::Game),
+            _movable_torus_constraint_system(AppState::Game),
+            _movable_update_transform_system(AppState::Game),
+        ));
+        // Also process movable entities on GameOver
+        // app.add_systems((
+        //     _movable_system(AppState::GameOver),
+        //     _movable_torus_constraint_system(AppState::GameOver),
+        //     _movable_update_transform_system(AppState::GameOver),
+        // ));
     }
 }
 

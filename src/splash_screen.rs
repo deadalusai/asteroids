@@ -8,18 +8,14 @@ pub struct SplashScreenPlugin;
 
 impl Plugin for SplashScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(AppState::Menu)
-                .with_system(menu_setup_system)
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Menu)
-                .with_system(menu_cleanup_system)
-        );
-        app.add_system_set(
-            SystemSet::on_update(AppState::Menu)
-                .with_system(menu_keyboard_system)
-        );
+        app.add_systems((
+            menu_setup_system
+                .in_schedule(OnEnter(AppState::Menu)),
+            menu_keyboard_system
+                .in_set(OnUpdate(AppState::Menu)),
+            menu_cleanup_system
+                .in_schedule(OnExit(AppState::Menu))
+        ));
     }
 }
 
@@ -89,9 +85,9 @@ fn menu_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<Men
 
 fn menu_keyboard_system(
     mut kb: ResMut<Input<KeyCode>>,
-    mut app_state: ResMut<State<AppState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
 ) {
     if kb.clear_just_released(KeyCode::Space) {
-        app_state.set(AppState::Game).unwrap();
+        next_app_state.set(AppState::Game);
     }
 }

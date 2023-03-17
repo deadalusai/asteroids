@@ -16,7 +16,7 @@ pub mod assets;
 use bevy::prelude::*;
 use bevy::app::PluginGroupBuilder;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemLabel)]
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FrameStage {
     Start,
     Input,

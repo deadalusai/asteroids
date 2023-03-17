@@ -16,23 +16,18 @@ pub struct BulletPlugin;
 
 impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(
-                    bullet_collision_system
-                        .label(FrameStage::Collision)
-                        .after(FrameStage::Movement)
-                )
-                .with_system(
-                    bullet_despawn_system
-                        .label(FrameStage::CollisionEffect)
-                        .after(FrameStage::Collision)
-                )
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Game)
-                .with_system(destroy_bullets_system)
-        );
+        app.add_systems((
+            bullet_collision_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::Collision)
+                .after(FrameStage::Movement),
+            bullet_despawn_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::CollisionEffect)
+                .after(FrameStage::Collision),
+            destroy_bullets_system
+                .in_schedule(OnExit(AppState::Game))
+        ));
     }
 }
 
@@ -102,7 +97,7 @@ pub fn spawn_bullet(
     spawn: BulletSpawn
 ) {
     let bullet_color = Color::rgba(0.8, 0.8, 0.8, 1.0);
-    let bullet_draw_mode = DrawMode::Stroke(StrokeMode::new(bullet_color, LINE_WIDTH));
+    let bullet_stroke = Stroke::new(bullet_color, LINE_WIDTH);
 
     // Transform
     let transform = Transform::default()
@@ -129,11 +124,12 @@ pub fn spawn_bullet(
             },
             MovableTorusConstraint { radius },
             // Rendering
-            GeometryBuilder::build_as(
-                &assets.bullet_shape,
-                bullet_draw_mode,
-                transform
-            ),
+            ShapeBundle {
+                path: Path(assets.bullet_shape.0.clone()),
+                transform,
+                ..default()
+            },
+            bullet_stroke,
             // Collision detection
             Collidable { collider },
         ));

@@ -14,36 +14,26 @@ pub struct GameManagerPlugin;
 impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(WorldBoundaries::default());
-        app.add_system_set(
-            SystemSet::on_enter(AppState::Game)
-                .with_system(game_setup_system)
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Game)
-                .with_system(game_teardown_system)
-        );
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(
-                    world_boundaries_update_system
-                        .label(FrameStage::Start)
-                )
-                .with_system(
-                    game_effects_system
-                        .label(FrameStage::Start)
-                        .after(world_boundaries_update_system)
-                )
-                .with_system(
-                    game_events_system
-                )
-                .with_system(
-                    game_update_system
-                        .after(game_events_system)
-                )
-                .with_system(
-                    game_keyboard_system
-                )
-        );
+        app.add_systems((
+            game_setup_system
+                .in_schedule(OnEnter(AppState::Game)),
+            game_teardown_system
+                .in_schedule(OnExit(AppState::Game)),
+            world_boundaries_update_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::Start),
+            game_effects_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::Start)
+                .after(world_boundaries_update_system),
+            game_events_system
+                .in_set(OnUpdate(AppState::Game)),
+            game_update_system
+                .in_set(OnUpdate(AppState::Game))
+                .after(game_events_system),
+            game_keyboard_system
+                .in_set(OnUpdate(AppState::Game)),
+        ));
     }
 }
 
@@ -80,10 +70,10 @@ fn world_boundaries_update_system(
     projection: Query<&bevy::render::camera::OrthographicProjection>
 ) {
     let projection = projection.get_single().unwrap();
-    world_boundaries.left = projection.left;
-    world_boundaries.right = projection.right;
-    world_boundaries.top = projection.top;
-    world_boundaries.bottom = projection.bottom;
+    world_boundaries.left = projection.area.min.x;
+    world_boundaries.bottom = projection.area.min.y;
+    world_boundaries.right = projection.area.max.x;
+    world_boundaries.top = projection.area.max.y;
 }
 
 // Game Controller
@@ -283,7 +273,7 @@ fn game_update_system(
 fn game_effects_system(
     mut commands: Commands,
     mut game: ResMut<GameManager>,
-    mut app_state: ResMut<State<AppState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
     world_boundaries: Res<WorldBoundaries>,
     time: Res<Time>,
     assets: Res<GameAssets>,
@@ -311,7 +301,7 @@ fn game_effects_system(
         commands.insert_resource(crate::game_over_screen::GameResults {
             score: game.player_points,
         });
-        app_state.push(AppState::GameOver).unwrap();
+        next_app_state.set(AppState::GameOver);
         return;
     }
 }
@@ -472,7 +462,7 @@ fn random_asteroid_shape(rng: &mut rand::rngs::ThreadRng) -> AsteroidShapeId {
 fn game_keyboard_system(
     mut kb: ResMut<Input<KeyCode>>,
     mut game: ResMut<GameManager>,
-    mut app_state: ResMut<State<AppState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
 ) {
     // Spawn a single asteroid
     if kb.just_released(KeyCode::O) {
@@ -488,6 +478,6 @@ fn game_keyboard_system(
 
     // Pause
     if kb.clear_just_released(KeyCode::Escape) {
-        app_state.push(AppState::Pause).unwrap();
+        next_app_state.set(AppState::Pause);
     }
 }

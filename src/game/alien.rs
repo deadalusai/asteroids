@@ -23,22 +23,17 @@ pub struct AlienPlugin;
 impl Plugin for AlienPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<AlienUfoDestroyedEvent>();
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(
-                    alien_bullet_system
-                        .after(FrameStage::Movement)
-                )
-                .with_system(
-                    alien_hit_system
-                        .label(FrameStage::CollisionEffect)
-                        .after(FrameStage::Collision)
-                )
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Game)
-                .with_system(alien_teardown_system)
-        );
+        app.add_systems((
+            alien_bullet_system
+                .in_set(OnUpdate(AppState::Game))
+                .after(FrameStage::Movement),
+            alien_hit_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::CollisionEffect)
+                .after(FrameStage::Collision),
+            alien_teardown_system
+                .in_schedule(OnExit(AppState::Game))
+        ));
     }
 }
 
@@ -108,7 +103,7 @@ pub fn spawn_alien_ufo(
 
     // Rocket
     let alien_color = Color::rgba(1., 1., 1., 1.);
-    let alien_draw_mode = DrawMode::Stroke(StrokeMode::new(alien_color, LINE_WIDTH));
+    let alien_stroke = Stroke::new(alien_color, LINE_WIDTH);
 
     // Transform
     let transform = Transform::from_translation(Vec3::new(position.x, position.y, ALIEN_Z));
@@ -139,11 +134,12 @@ pub fn spawn_alien_ufo(
             BulletCollidable { source: BulletSource::PlayerRocket },
             Collidable { collider },
             // Rendering
-            GeometryBuilder::build_as(
-                &assets.alien_ufo_shape,
-                alien_draw_mode,
-                transform
-            )
+            ShapeBundle {
+                path: Path(assets.alien_ufo_shape.0.clone()),
+                transform,
+                ..default()
+            },
+            alien_stroke
         ));
 }
 

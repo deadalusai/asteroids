@@ -9,8 +9,9 @@ mod game_over_screen;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, States)]
 enum AppState {
+    #[default]
     Menu,
     Game,
     Pause,
@@ -28,18 +29,17 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
         .add_plugins(DefaultPlugins
             .set(WindowPlugin {
-                window: WindowDescriptor {
+                primary_window: Some(Window {
                     title,
-                    width,
-                    height,
-                    ..Default::default()
-                },
-                ..Default::default()
+                    resolution: (width, height).into(),
+                    ..default()
+                }),
+                ..default()
             }))
         // state management
-        .add_state(AppState::Menu)
+        .add_state::<AppState>()
         // bevy_prototype_lyon
-        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa::Sample4)
         .add_plugin(ShapePlugin)
         .add_plugins(game::GamePluginGroup)
         .add_plugin(splash_screen::SplashScreenPlugin)
@@ -58,7 +58,10 @@ fn startup_system(mut commands: Commands) {
         projection: bevy::render::camera::OrthographicProjection {
             far: 1000.0,
             // scaling_mode: bevy::render::camera::ScalingMode::FixedHorizontal(FIXED_VIEWPORT_WIDTH),
-            scaling_mode: bevy::render::camera::ScalingMode::Auto { min_width: FIXED_WIDTH_HEIGHT, min_height: FIXED_WIDTH_HEIGHT },
+            scaling_mode: bevy::render::camera::ScalingMode::AutoMin {
+                min_width: FIXED_WIDTH_HEIGHT,
+                min_height: FIXED_WIDTH_HEIGHT,
+            },
             ..default()
         },
         ..default()

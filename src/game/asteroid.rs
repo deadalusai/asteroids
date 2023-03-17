@@ -18,23 +18,18 @@ pub struct AsteroidPlugin;
 impl Plugin for AsteroidPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<AsteroidDestroyedEvent>();
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(
-                    asteroid_collision_system
-                        .label(FrameStage::Collision)
-                        .after(FrameStage::Movement)
-                )
-                .with_system(
-                    asteroid_hit_system
-                        .label(FrameStage::CollisionEffect)
-                        .after(FrameStage::Collision)
-                )
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Game)
-                .with_system(destroy_asteroids_system)
-        );
+        app.add_systems((
+            asteroid_collision_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::Collision)
+                .after(FrameStage::Movement),
+            asteroid_hit_system
+                .in_set(OnUpdate(AppState::Game))
+                .in_set(FrameStage::CollisionEffect)
+                .after(FrameStage::Collision),
+            destroy_asteroids_system
+                .in_schedule(OnExit(AppState::Game))
+        ));
     }
 }
 
@@ -148,7 +143,7 @@ pub fn spawn_asteroid(
     let scale = asteroid_scale(spawn.size);
 
     let color = Color::rgba(0.6, 0.6, 0.6, 1.);
-    let draw_mode = DrawMode::Stroke(StrokeMode::new(color, LINE_WIDTH / scale));
+    let stroke = Stroke::new(color, LINE_WIDTH / scale);
     let transform = Transform::default()
         .with_translation(Vec3::new(position.x, position.y, ASTEROID_Z))
         .with_scale(Vec3::splat(scale));
@@ -171,7 +166,13 @@ pub fn spawn_asteroid(
                 rotational_acceleration: None,
             },
             MovableTorusConstraint { radius },
-            GeometryBuilder::build_as(shape, draw_mode, transform),
+            // Render
+            ShapeBundle {
+                path: Path(shape.0.clone()),
+                transform,
+                ..default()
+            },
+            stroke,
             // Collision detection
             Collidable { collider },
             BulletCollidable { source: BulletSource::PlayerRocket }

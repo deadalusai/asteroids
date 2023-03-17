@@ -1,21 +1,5 @@
 use bevy::prelude::Vec2;
 use bevy::utils::HashSet;
-use bevy_prototype_lyon::prelude::DrawMode;
-
-pub fn update_drawmode_alpha(draw_mode: &mut DrawMode, new_alpha: f32) {
-    match draw_mode {
-        DrawMode::Stroke(stroke) => {
-            stroke.color.set_a(new_alpha);
-        },
-        DrawMode::Fill(fill) => {
-            fill.color.set_a(new_alpha);
-        },
-        DrawMode::Outlined { fill_mode, outline_mode } => {
-            fill_mode.color.set_a(new_alpha);
-            outline_mode.color.set_a(new_alpha);
-        },
-    }
-}
 
 // Rng
 

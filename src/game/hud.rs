@@ -11,19 +11,16 @@ pub struct HeadsUpDisplayPlugin;
 impl Plugin for HeadsUpDisplayPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(FrameTimeDiagnosticsPlugin::default());
-        app.add_system_set(
-            SystemSet::on_enter(AppState::Game)
-                .with_system(setup_system)
-        );
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(status_text_update_system)
-                .with_system(debug_text_update_system)
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Game)
-                .with_system(destroy_system)
-        );
+        app.add_systems((
+            setup_system
+                .in_schedule(OnEnter(AppState::Game)),
+            status_text_update_system
+                .in_set(OnUpdate(AppState::Game)),
+            debug_text_update_system
+                .in_set(OnUpdate(AppState::Game)),
+            destroy_system
+                .in_schedule(OnExit(AppState::Game))
+        ));
     }
 }
 

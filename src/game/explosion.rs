@@ -14,14 +14,12 @@ pub struct ExplosionPlugin;
 
 impl Plugin for ExplosionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(explosion_system)
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Game)
-                .with_system(destroy_explosions_system)
-        );
+        app.add_systems((
+            explosion_system
+                .in_set(OnUpdate(AppState::Game)),
+            destroy_explosions_system
+                .in_schedule(OnExit(AppState::Game))
+        ));
     }
 }
 
@@ -117,7 +115,7 @@ pub fn spawn_explosion(
     spawn: SpawnExplosion
 ) {
     let explosion_color = Color::rgba(0.8, 0.8, 0.8, 1.0);
-    let explosion_draw_mode = DrawMode::Stroke(StrokeMode::new(explosion_color, LINE_WIDTH / spawn.shape_scale));
+    let explosion_stroke = Stroke::new(explosion_color, LINE_WIDTH / spawn.shape_scale);
     let explosion_part_speed = EXPLOSION_PART_MIN_ADD_SPEED + rng.random_f32() * (EXPLOSION_PART_MAX_ADD_SPEED - EXPLOSION_PART_MIN_ADD_SPEED);
 
     let parts = assets.explosion_parts.get(&spawn.shape_id).unwrap();
@@ -144,11 +142,12 @@ pub fn spawn_explosion(
                     rotational_acceleration: None,
                 },
                 // Rendering
-                GeometryBuilder::build_as(
-                    &part.shape,
-                    explosion_draw_mode.clone(),
-                    transform
-                ),
+                ShapeBundle {
+                    transform,
+                    path: Path(part.shape.0.clone()),
+                    ..default()
+                },
+                explosion_stroke
             ));
     }
 }
@@ -156,9 +155,9 @@ pub fn spawn_explosion(
 fn explosion_system(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Explosion, &mut DrawMode)>
+    mut query: Query<(Entity, &mut Explosion, &mut Stroke)>
 ) {
-    for (entity, mut explosion, mut draw_mode) in query.iter_mut() {
+    for (entity, mut explosion, mut stroke) in query.iter_mut() {
         // Update
         explosion.despawn_timer.tick(time.delta());
         // Despawn?
@@ -168,6 +167,6 @@ fn explosion_system(
         }
         // Slowly fade to transparent
         let percent_left = explosion.despawn_timer.percent_left(); // 1.0 -> 0.0
-        update_drawmode_alpha(&mut draw_mode, percent_left);
+        stroke.color.set_a(percent_left);
     }
 }

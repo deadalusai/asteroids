@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
 use crate::AppState;
-use super::util::update_drawmode_alpha;
 
 // Plugins
 
@@ -10,9 +9,9 @@ pub struct InvulnerablePlugin;
 
 impl Plugin for InvulnerablePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_update(AppState::Game)
-                .with_system(update_invulnerability_system)
+        app.add_system(
+            update_invulnerability_system
+                .in_set(OnUpdate(AppState::Game))
         );
     }
 }
@@ -50,21 +49,21 @@ impl TestInvulnerable for Option<&Invulnerable> {
 
 pub fn update_invulnerability_system(
     time: Res<Time>,
-    mut query: Query<(&mut Invulnerable, Option<&mut DrawMode>)>
+    mut query: Query<(&mut Invulnerable, Option<&mut Stroke>)>
 ) {
-    for (mut invulnerable, draw_mode) in query.iter_mut() {
+    for (mut invulnerable, stroke) in query.iter_mut() {
         // Tick all potentially-invulnerable entities
         invulnerable.timer.tick(time.delta());
 
         // Optional animations
-        if let Some(mut draw_mode) = draw_mode {
+        if let Some(mut stroke) = stroke {
             let new_alpha = if invulnerable.is_invulnerable() {
                 invulnerability_opacity_over_t(invulnerable.timer.elapsed_secs())
             }
             else {
                 1.0
             };    
-            update_drawmode_alpha(&mut draw_mode, new_alpha);
+            stroke.color.set_a(new_alpha);
         }
     }
 }

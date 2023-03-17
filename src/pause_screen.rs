@@ -8,18 +8,14 @@ pub struct PauseScreenPlugin;
 
 impl Plugin for PauseScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(AppState::Pause)
-                .with_system(pause_setup_system)
-        );
-        app.add_system_set(
-            SystemSet::on_exit(AppState::Pause)
-                .with_system(pause_cleanup_system)
-        );
-        app.add_system_set(
-            SystemSet::on_update(AppState::Pause)
-                .with_system(pause_keyboard_system)
-        );
+        app.add_systems((
+            pause_setup_system
+                .in_schedule(OnEnter(AppState::Pause)),
+            pause_keyboard_system
+                .in_set(OnUpdate(AppState::Pause)),
+            pause_cleanup_system
+                .in_schedule(OnExit(AppState::Pause))
+        ));
     }
 }
 
@@ -89,9 +85,9 @@ fn pause_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<Pa
 
 fn pause_keyboard_system(
     mut kb: ResMut<Input<KeyCode>>,
-    mut app_state: ResMut<State<AppState>>
+    mut next_app_state: ResMut<NextState<AppState>>
 ) {
     if kb.clear_just_released(KeyCode::Escape) {
-        app_state.pop().unwrap();
+        next_app_state.set(AppState::Game);
     }
 }
