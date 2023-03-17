@@ -25,6 +25,7 @@ impl Plugin for GameOverScreenPlugin {
 
 // Resources
 
+#[derive(Resource)]
 pub struct GameResults {
     pub score: u32,
 }
@@ -63,33 +64,35 @@ fn game_over_setup_system(
 
     // Root node
     commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                flex_direction: FlexDirection::ColumnReverse,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
+        .spawn((
+            GameOverRoot,
+            NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: background.into(),
                 ..default()
             },
-            color: background.into(),
-            ..default()
-        })
-        .insert(GameOverRoot)
+        ))
         .with_children(|parent| {
             // Title
-            parent.spawn_bundle(
+            parent.spawn(
                 TextBundle::from_section("GAME OVER", title_text_style)
                 .with_style(margin_style.clone())
             );
             // Score
-            parent.spawn_bundle(
+            parent.spawn(
                 TextBundle::from_sections([
                     TextSection::new("SCORE ", secondary_text_style.clone()),
                     TextSection::new(game_results.score.to_string(), ts_with_color(&secondary_text_style, Color::GOLD)),
                 ])
                 .with_style(margin_style.clone())
             );
-            parent.spawn_bundle(
+            parent.spawn(
                 TextBundle::from_section("Press [esc] to continue", secondary_text_style)
                 .with_style(margin_style.clone())
             );

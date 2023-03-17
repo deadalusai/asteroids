@@ -158,23 +158,24 @@ pub fn spawn_asteroid(
     let collider = Collider::circle(position.into(), radius);
 
     let entity = commands
-        .spawn()
-        .insert(Asteroid {
-            size: spawn.size,
-        })
-        .insert(Movable {
-            position,
-            velocity,
-            acceleration: None,
-            heading_angle: 0.,
-            rotational_velocity: rotation * std::f32::consts::TAU,
-            rotational_acceleration: None,
-        })
-        .insert(MovableTorusConstraint { radius })
-        .insert_bundle(GeometryBuilder::build_as(shape, draw_mode, transform))
-        // Collision detection
-        .insert(Collidable { collider })
-        .insert(BulletCollidable { source: BulletSource::PlayerRocket })
+        .spawn((
+            Asteroid {
+                size: spawn.size,
+            },
+            Movable {
+                position,
+                velocity,
+                acceleration: None,
+                heading_angle: 0.,
+                rotational_velocity: rotation * std::f32::consts::TAU,
+                rotational_acceleration: None,
+            },
+            MovableTorusConstraint { radius },
+            GeometryBuilder::build_as(shape, draw_mode, transform),
+            // Collision detection
+            Collidable { collider },
+            BulletCollidable { source: BulletSource::PlayerRocket }
+        ))
         .id();
 
     if let Some(timer) = spawn.invulnerable {

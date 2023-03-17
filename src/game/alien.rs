@@ -123,26 +123,27 @@ pub fn spawn_alien_ufo(
     bullet_controller.try_set_firing_state(true);
 
     commands
-        .spawn()
-        .insert(AlienUfo)
-        .insert(Movable {
-            position,
-            velocity,
-            acceleration: None,
-            heading_angle: 0.0,
-            rotational_velocity: 0.,
-            rotational_acceleration: None,
-        })
-        .insert(MovableTorusConstraint { radius })
-        .insert(bullet_controller)
-        // Collision detection
-        .insert(BulletCollidable { source: BulletSource::PlayerRocket })
-        .insert(Collidable { collider })
-        // Rendering
-        .insert_bundle(GeometryBuilder::build_as(
-            &assets.alien_ufo_shape,
-            alien_draw_mode,
-            transform
+        .spawn((
+            AlienUfo,
+            Movable {
+                position,
+                velocity,
+                acceleration: None,
+                heading_angle: 0.0,
+                rotational_velocity: 0.,
+                rotational_acceleration: None,
+            },
+            MovableTorusConstraint { radius },
+            bullet_controller,
+            // Collision detection
+            BulletCollidable { source: BulletSource::PlayerRocket },
+            Collidable { collider },
+            // Rendering
+            GeometryBuilder::build_as(
+                &assets.alien_ufo_shape,
+                alien_draw_mode,
+                transform
+            )
         ));
 }
 

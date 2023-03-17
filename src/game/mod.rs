@@ -14,6 +14,7 @@ pub mod manager;
 pub mod assets;
 
 use bevy::prelude::*;
+use bevy::app::PluginGroupBuilder;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemLabel)]
 pub enum FrameStage {
@@ -29,18 +30,19 @@ pub enum FrameStage {
 pub struct GamePluginGroup;
 
 impl PluginGroup for GamePluginGroup {
-    fn build(&mut self, group: &mut bevy::app::PluginGroupBuilder) {
-        group.add(collidable::CollidablePlugin);
-        group.add(movable::MovablePlugin);
-        group.add(hit::HitPlugin);
-        group.add(invulnerable::InvulnerablePlugin);
-        group.add(assets::AssetsPlugin);
-        group.add(player::PlayerPlugin);
-        group.add(alien::AlienPlugin);
-        group.add(bullet::BulletPlugin);
-        group.add(asteroid::AsteroidPlugin);
-        group.add(explosion::ExplosionPlugin);
-        group.add(hud::HeadsUpDisplayPlugin);
-        group.add(manager::GameManagerPlugin);
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(collidable::CollidablePlugin)
+            .add(movable::MovablePlugin)
+            .add(hit::HitPlugin)
+            .add(invulnerable::InvulnerablePlugin)
+            .add(assets::AssetsPlugin)
+            .add(player::PlayerPlugin)
+            .add(alien::AlienPlugin)
+            .add(bullet::BulletPlugin)
+            .add(asteroid::AsteroidPlugin)
+            .add(explosion::ExplosionPlugin)
+            .add(hud::HeadsUpDisplayPlugin)
+            .add(manager::GameManagerPlugin)
     }
 }

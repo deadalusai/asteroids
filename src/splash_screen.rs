@@ -53,24 +53,26 @@ fn menu_setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // Root node
     commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                flex_direction: FlexDirection::ColumnReverse,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
+        .spawn((
+            MenuRoot,
+            NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::NONE.into(),
                 ..default()
-            },
-            color: Color::NONE.into(),
-            ..default()
-        })
-        .insert(MenuRoot)
+            }
+        ))
         .with_children(|parent| {
-            parent.spawn_bundle(
+            parent.spawn(
                 TextBundle::from_section("ASTEROIDS", title_text_style)
                 .with_style(margin_style.clone())
             );
-            parent.spawn_bundle(
+            parent.spawn(
                 TextBundle::from_section("Press [space] to begin", secondary_text_style)
                 .with_style(margin_style.clone())
             );

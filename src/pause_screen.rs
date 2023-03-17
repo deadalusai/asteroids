@@ -53,24 +53,26 @@ fn pause_setup_system(
 
     // Root node
     commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                flex_direction: FlexDirection::ColumnReverse,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
+        .spawn((
+            PauseRoot,
+            NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::NONE.into(),
                 ..default()
             },
-            color: Color::NONE.into(),
-            ..default()
-        })
-        .insert(PauseRoot)
+        ))
         .with_children(|parent| {
-            parent.spawn_bundle(
+            parent.spawn(
                 TextBundle::from_section("PAUSE", title_text_style)
                 .with_style(margin_style.clone())
             );
-            parent.spawn_bundle(
+            parent.spawn(
                 TextBundle::from_section("Press [esc] to continue", secondary_text_style)
                 .with_style(margin_style.clone())
             );

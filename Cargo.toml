@@ -8,10 +8,10 @@ rand = "0.8.5"
 # Simple 2d collision detection for bevy
 sepax2d = "0.3"
 # Draw 2d shapes and paths with bevy
-bevy_prototype_lyon = "0.6"
+bevy_prototype_lyon = "0.7"
 
 [dependencies.bevy]
-version = "0.8.1"
+version = "0.9"
 # Disable the default features if there are any that you do not want
 default-features = false
 features = [

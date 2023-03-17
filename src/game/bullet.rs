@@ -114,28 +114,29 @@ pub fn spawn_bullet(
     let collider = Collider::circle(spawn.position.into(), radius);
 
     commands
-        .spawn()
-        .insert(Bullet {
-            source: spawn.source,
-            despawn_timer: Timer::from_seconds(spawn.despawn_after_secs, false),
-        })
-        .insert(Movable {
-            position: spawn.position,
-            velocity: spawn.velocity,
-            acceleration: None,
-            heading_angle: spawn.heading_angle,
-            rotational_velocity: 0.,
-            rotational_acceleration: None,
-        })
-        .insert(MovableTorusConstraint { radius })
-        // Rendering
-        .insert_bundle(GeometryBuilder::build_as(
-            &assets.bullet_shape,
-            bullet_draw_mode,
-            transform
-        ))
-        // Collision detection
-        .insert(Collidable { collider });
+        .spawn((
+            Bullet {
+                source: spawn.source,
+                despawn_timer: Timer::from_seconds(spawn.despawn_after_secs, TimerMode::Once),
+            },
+            Movable {
+                position: spawn.position,
+                velocity: spawn.velocity,
+                acceleration: None,
+                heading_angle: spawn.heading_angle,
+                rotational_velocity: 0.,
+                rotational_acceleration: None,
+            },
+            MovableTorusConstraint { radius },
+            // Rendering
+            GeometryBuilder::build_as(
+                &assets.bullet_shape,
+                bullet_draw_mode,
+                transform
+            ),
+            // Collision detection
+            Collidable { collider },
+        ));
 }
 
 fn bullet_despawn_system(
@@ -188,7 +189,7 @@ impl BulletController {
         Self {
             state: BulletControllerState::None,
             fire_count: 0,
-            timer: Timer::from_seconds(1.0 / fire_rate, true),
+            timer: Timer::from_seconds(1.0 / fire_rate, TimerMode::Repeating),
             spawn_translation: None,
         }
     }

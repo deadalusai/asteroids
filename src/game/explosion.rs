@@ -131,23 +131,24 @@ pub fn spawn_explosion(
             .with_scale(Vec3::splat(spawn.shape_scale));
 
         commands
-            .spawn()
-            .insert(Explosion {
-                despawn_timer: Timer::from_seconds(spawn.despawn_after_secs, false),
-            })
-            .insert(Movable {
-                position,
-                velocity,
-                acceleration: None,
-                heading_angle: spawn.heading_angle,
-                rotational_velocity: spawn.rotational_velocity,
-                rotational_acceleration: None,
-            })
-            // Rendering
-            .insert_bundle(GeometryBuilder::build_as(
-                &part.shape,
-                explosion_draw_mode.clone(),
-                transform
+            .spawn((
+                Explosion {
+                    despawn_timer: Timer::from_seconds(spawn.despawn_after_secs, TimerMode::Once),
+                },
+                Movable {
+                    position,
+                    velocity,
+                    acceleration: None,
+                    heading_angle: spawn.heading_angle,
+                    rotational_velocity: spawn.rotational_velocity,
+                    rotational_acceleration: None,
+                },
+                // Rendering
+                GeometryBuilder::build_as(
+                    &part.shape,
+                    explosion_draw_mode.clone(),
+                    transform
+                ),
             ));
     }
 }

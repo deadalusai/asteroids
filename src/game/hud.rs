@@ -78,15 +78,15 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
                 left: Val::Px(15.0),
                 ..default()
             },
-            justify_content: JustifyContent::FlexStart,
+            justify_content: JustifyContent::FlexEnd,
             ..default()
         });
 
-    commands
-        .spawn()
-        .insert(StatusText)
-        .insert(HudPart)
-        .insert_bundle(status_text_bundle);
+    commands.spawn((
+        StatusText,
+        HudPart,
+        status_text_bundle
+    ));
 
     let debug_text_bundle =
         TextBundle::from_sections([
@@ -106,15 +106,15 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
                 right: Val::Px(15.0),
                 ..default()
             },
-            justify_content: JustifyContent::FlexEnd,
+            justify_content: JustifyContent::FlexStart,
             ..default()
         });
 
-    commands
-        .spawn()
-        .insert(DebugText)
-        .insert(HudPart)
-        .insert_bundle(debug_text_bundle);
+    commands.spawn((
+        DebugText,
+        HudPart,
+        debug_text_bundle,
+    ));
 }
 
 fn destroy_system(mut commands: Commands, query: Query<Entity, With<HudPart>>) {

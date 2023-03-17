@@ -67,7 +67,7 @@ fn game_teardown_system(mut commands: Commands) {
 
 // World boundary information
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 pub struct WorldBoundaries {
     pub left: f32,
     pub right: f32,
@@ -125,6 +125,7 @@ pub struct ScheduledAsteroidSpawn {
     instruction: AsteroidSpawnInstruction
 }
 
+#[derive(Resource)]
 pub struct GameManager {
     pub player_lives_remaining: u32,
     pub player_points: u32,
@@ -145,8 +146,8 @@ impl GameManager {
             player_points: 0,
             player_state: PlayerState::FirstSpawn,
             alien_state: AlienState::Spawning,
-            player_spawn_timer: Timer::from_seconds(0.0, false),
-            alien_spawn_timer: Timer::from_seconds(0.0, false),
+            player_spawn_timer: Timer::from_seconds(0.0, TimerMode::Once),
+            alien_spawn_timer: Timer::from_seconds(0.0, TimerMode::Once),
             scheduled_asteroid_spawns: Vec::new(),
             debug_asteroid_count_on_screen: 0,
             init,
@@ -168,7 +169,7 @@ impl GameManager {
         };
         if self.player_state == PlayerState::Respawning {
             self.player_lives_remaining -= 1;
-            self.player_spawn_timer = Timer::from_seconds(GAME_PLAYER_RESPAWN_TIME_SECS, false);
+            self.player_spawn_timer = Timer::from_seconds(GAME_PLAYER_RESPAWN_TIME_SECS, TimerMode::Once);
         }
     }
 
@@ -197,14 +198,14 @@ impl GameManager {
 
     fn schedule_asteroid_to_spawn(&mut self, time_secs: f32, instruction: AsteroidSpawnInstruction) {
         self.scheduled_asteroid_spawns.push(ScheduledAsteroidSpawn {
-            spawn_timer: Timer::from_seconds(time_secs, false),
+            spawn_timer: Timer::from_seconds(time_secs, TimerMode::Once),
             instruction
         });
     }
 
     fn schedule_alien_ufo_to_spawn(&mut self) {
         self.alien_state = AlienState::Spawning;
-        self.alien_spawn_timer = Timer::from_seconds(self.init.alien_spawn_secs, false);
+        self.alien_spawn_timer = Timer::from_seconds(self.init.alien_spawn_secs, TimerMode::Once);
     }
 
     fn tick(&mut self, delta: std::time::Duration) {
@@ -373,7 +374,7 @@ fn handle_asteroid_spawn(
                 AsteroidSize::Medium => AsteroidSize::Small,
                 AsteroidSize::Large => AsteroidSize::Medium,
             };
-            let invulnerable = Some(Timer::from_seconds(CHUNK_ASTEROID_INVULNERABLE_SECS, false));
+            let invulnerable = Some(Timer::from_seconds(CHUNK_ASTEROID_INVULNERABLE_SECS, TimerMode::Once));
             spawn_asteroid(commands, &assets.asteroid, AsteroidSpawn { size, position: a.0, velocity: a.1, rotation: a.2, shape: a.3, invulnerable: invulnerable.clone() });
             spawn_asteroid(commands, &assets.asteroid, AsteroidSpawn { size, position: b.0, velocity: b.1, rotation: b.2, shape: b.3, invulnerable });
         },

@@ -169,8 +169,7 @@ fn rocket_exhaust_update_system(
     rocket_query: Query<(&PlayerRocket, &Children), With<PlayerRocket>>,
     mut exhaust_query: Query<&mut DrawMode, With<PlayerRocketExhaust>>
 ) {
-    let t_secs = time.seconds_since_startup() as f32;
-
+    let t_secs = time.elapsed_seconds();
     for (rocket, children) in rocket_query.iter() {
         // Update child components
         for &child in children.iter() {
@@ -206,7 +205,7 @@ impl Default for RocketSpawn {
         Self {
             position: default(),
             velocity: default(),
-            invulnerable: Some(Timer::from_seconds(ROCKET_SPAWN_INVULNERABILITY_SECS, false))
+            invulnerable: Some(Timer::from_seconds(ROCKET_SPAWN_INVULNERABILITY_SECS, TimerMode::Once))
         }
     }
 }
@@ -248,37 +247,38 @@ pub fn spawn_player_rocket(
     let bullet_spawn_translation = Vec2::new(radius, 0.0);
 
     let entity = commands
-        .spawn()
-        .insert(PlayerRocket::default())
-        .insert(Movable {
-            position,
-            velocity,
-            acceleration: None,
-            heading_angle: initial_heading_angle,
-            rotational_velocity: 0.,
-            rotational_acceleration: None,
-        })
-        .insert(MovableTorusConstraint { radius })
-        .insert(BulletController::new(bullet_fire_rate).with_spawn_translation(bullet_spawn_translation))
-        // Collision detection
-        .insert(AsteroidCollidable)
-        .insert(BulletCollidable { source: BulletSource::AlienUfo })
-        .insert(Collidable { collider })
-        // Rendering
-        .insert_bundle(GeometryBuilder::build_as(
-            &assets.rocket_shape,
-            rocket_draw_mode,
-            transform
+        .spawn((
+            PlayerRocket::default(),
+            Movable {
+                position,
+                velocity,
+                acceleration: None,
+                heading_angle: initial_heading_angle,
+                rotational_velocity: 0.,
+                rotational_acceleration: None,
+            },
+            MovableTorusConstraint { radius },
+            BulletController::new(bullet_fire_rate).with_spawn_translation(bullet_spawn_translation),
+            // Collision detection
+            AsteroidCollidable,
+            BulletCollidable { source: BulletSource::AlienUfo },
+            Collidable { collider },
+            // Rendering
+            GeometryBuilder::build_as(
+                &assets.rocket_shape,
+                rocket_draw_mode,
+                transform
+            ),
         ))
         .with_children(|child_commands| {
-            child_commands
-                .spawn()
-                .insert(PlayerRocketExhaust)
-                .insert_bundle(GeometryBuilder::build_as(
+            child_commands.spawn((
+                PlayerRocketExhaust,
+                GeometryBuilder::build_as(
                     &assets.rocket_exhaust_shape,
                     rocket_exhaust_draw_mode,
                     Transform::default()
-                ));
+                )
+            ));
         })
         .id();
 

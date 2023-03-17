@@ -21,6 +21,7 @@ impl Plugin for AssetsPlugin {
     }
 }
 
+#[derive(Resource)]
 pub struct GameAssets {
     pub explosion: explosion::ExplosionAssets,
     pub asteroid: asteroid::AsteroidAssets,
