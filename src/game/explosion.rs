@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_prototype_lyon::prelude::*;
 use crate::AppState;
+use super::manager::GameCleanup;
 use super::movable::Movable;
 use super::svg::simple_svg_to_path;
 use super::util::*;
@@ -18,7 +19,7 @@ impl Plugin for ExplosionPlugin {
             explosion_system
                 .in_set(OnUpdate(AppState::Game)),
             destroy_explosions_system
-                .in_schedule(OnExit(AppState::Game))
+                .in_schedule(GameCleanup)
         ));
     }
 }

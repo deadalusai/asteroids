@@ -1,24 +1,28 @@
 use bevy::prelude::*;
+use bevy::ecs::schedule::ScheduleLabel;
 use bevy::render::render_resource::encase::rts_array::Length;
 use rand::thread_rng;
 use crate::AppState;
-use super::FrameStage;
+use super::{FrameStage};
 use super::assets::GameAssets;
 use super::alien::{AlienSpawn, AlienUfoDestroyedEvent, spawn_alien_ufo};
 use super::player::{PlayerRocketDestroyedEvent, RocketSpawn, spawn_player_rocket};
 use super::asteroid::{Asteroid, AsteroidDestroyedEvent, AsteroidSize, AsteroidSpawn, AsteroidShapeId, spawn_asteroid};
 use super::util::*;
 
+/// Register systems with this schedule to to clean up game components at the right time.
+#[derive(ScheduleLabel, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GameCleanup;
+
 pub struct GameManagerPlugin;
 
 impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(WorldBoundaries::default());
+        app.add_schedule(GameCleanup, Schedule::new());
         app.add_systems((
-            game_setup_system
-                .in_schedule(OnEnter(AppState::Game)),
             game_teardown_system
-                .in_schedule(OnExit(AppState::Game)),
+                .in_schedule(GameCleanup),
             world_boundaries_update_system
                 .in_set(OnUpdate(AppState::Game))
                 .in_set(FrameStage::Start),
@@ -40,7 +44,7 @@ impl Plugin for GameManagerPlugin {
 const ALIEN_SPAWN_MIN_SECS: f32 = 25.0;
 const ALIEN_SPAWN_MAX_SECS: f32 = 60.0;
 
-fn game_setup_system(mut commands: Commands) {
+pub fn game_create(commands: &mut Commands) {
     let mut rng = thread_rng();
     let alien_spawn_secs = ALIEN_SPAWN_MIN_SECS + rng.random_f32() * (ALIEN_SPAWN_MAX_SECS - ALIEN_SPAWN_MIN_SECS);
     let game_init = GameInit {

@@ -19,7 +19,7 @@ impl Plugin for HeadsUpDisplayPlugin {
             debug_text_update_system
                 .in_set(OnUpdate(AppState::Game)),
             destroy_system
-                .in_schedule(OnExit(AppState::Game))
+                .in_schedule(OnExit(AppState::Game)),
         ));
     }
 }
@@ -126,9 +126,10 @@ fn status_text_update_system(
     game: Res<GameManager>,
     mut status_text: Query<&mut Text, With<StatusText>>
 ) {
-    let mut status_text = status_text.get_single_mut().unwrap();
-    status_text.sections[1].value = format!("{}", game.player_points);
-    status_text.sections[3].value = format!("{}", game.player_lives_remaining);
+    if let Some(mut status_text) = status_text.get_single_mut().ok() {
+        status_text.sections[1].value = format!("{}", game.player_points);
+        status_text.sections[3].value = format!("{}", game.player_lives_remaining);
+    }
 }
 
 fn debug_text_update_system(
@@ -136,10 +137,11 @@ fn debug_text_update_system(
     diag: Res<Diagnostics>,
     mut debug_text: Query<&mut Text, With<DebugText>>
 ) {
-    let mut debug_text = debug_text.get_single_mut().unwrap();
-    let debug_s = &mut debug_text.sections[0].value;
-    debug_s.clear();
-    write_debug_info_text(&diag, &game, debug_s).unwrap();
+    if let Some(mut debug_text) = debug_text.get_single_mut().ok() {
+        let debug_s = &mut debug_text.sections[0].value;
+        debug_s.clear();
+        write_debug_info_text(&diag, &game, debug_s).unwrap();
+    }
 }
 
 fn write_debug_info_text(

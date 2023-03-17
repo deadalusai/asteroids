@@ -6,6 +6,7 @@ use super::FrameStage;
 use super::assets::GameAssets;
 use super::asteroid::AsteroidCollidable;
 use super::hit::{HitEvent, distinct_hit_events};
+use super::manager::GameCleanup;
 use super::movable::{Movable, MovableTorusConstraint, Acceleration, AcceleratingTo};
 use super::collidable::{Collidable, Collider};
 use super::explosion::{ExplosionShapeId, SpawnExplosion, spawn_explosion};
@@ -51,7 +52,7 @@ impl Plugin for PlayerPlugin {
                 .in_set(FrameStage::CollisionEffect)
                 .after(FrameStage::Collision),
             player_teardown_system
-                .in_schedule(OnExit(AppState::Game))
+                .in_schedule(GameCleanup)
         ));
     }
 }

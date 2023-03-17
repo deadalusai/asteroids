@@ -32,6 +32,7 @@ pub struct GamePluginGroup;
 impl PluginGroup for GamePluginGroup {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
+            .add(manager::GameManagerPlugin)
             .add(collidable::CollidablePlugin)
             .add(movable::MovablePlugin)
             .add(hit::HitPlugin)
@@ -43,6 +44,5 @@ impl PluginGroup for GamePluginGroup {
             .add(asteroid::AsteroidPlugin)
             .add(explosion::ExplosionPlugin)
             .add(hud::HeadsUpDisplayPlugin)
-            .add(manager::GameManagerPlugin)
     }
 }

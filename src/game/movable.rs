@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
 use super::manager::WorldBoundaries;
 use super::FrameStage;
 
@@ -9,36 +8,18 @@ pub struct MovablePlugin;
 
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
-        let _movable_system = |in_state: AppState|
+        app.add_systems((
             movable_system
-                .in_set(OnUpdate(in_state))
                 .in_set(FrameStage::Movement)
-                .after(FrameStage::Input);
-
-        let _movable_torus_constraint_system = |in_state: AppState|
+                .after(FrameStage::Input),
             movable_torus_constraint_system
-                .in_set(OnUpdate(in_state))
                 .in_set(FrameStage::Movement)
                 .after(FrameStage::Start)
-                .after(movable_system);
-
-        let _movable_update_transform_system = |in_state: AppState|
+                .after(movable_system),
             movable_update_transform_system
-                .in_set(OnUpdate(in_state))
                 .in_set(FrameStage::Movement)
-                .after(movable_torus_constraint_system);
-
-        app.add_systems((
-            _movable_system(AppState::Game),
-            _movable_torus_constraint_system(AppState::Game),
-            _movable_update_transform_system(AppState::Game),
+                .after(movable_torus_constraint_system)
         ));
-        // Also process movable entities on GameOver
-        // app.add_systems((
-        //     _movable_system(AppState::GameOver),
-        //     _movable_torus_constraint_system(AppState::GameOver),
-        //     _movable_update_transform_system(AppState::GameOver),
-        // ));
     }
 }
 

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::AppState;
+use crate::game::manager::{GameManager, GameCleanup};
 
 // Plugins
 
@@ -14,7 +15,9 @@ impl Plugin for SplashScreenPlugin {
             menu_keyboard_system
                 .in_set(OnUpdate(AppState::Menu)),
             menu_cleanup_system
-                .in_schedule(OnExit(AppState::Menu))
+                .in_schedule(OnExit(AppState::Menu)),
+            game_cleanup_system
+                .in_schedule(OnEnter(AppState::Menu)),
         ));
     }
 }
@@ -84,10 +87,22 @@ fn menu_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<Men
 }
 
 fn menu_keyboard_system(
+    mut commands: Commands,
     mut kb: ResMut<Input<KeyCode>>,
-    mut next_app_state: ResMut<NextState<AppState>>,
+    mut next_app_state: ResMut<NextState<AppState>>
 ) {
     if kb.clear_just_released(KeyCode::Space) {
+        crate::game::manager::game_create(&mut commands);
         next_app_state.set(AppState::Game);
+    }
+}
+
+fn game_cleanup_system(
+    world: &mut World
+)
+{
+    let is_game_initialized = world.get_resource::<GameManager>().is_some();
+    if is_game_initialized {
+        world.run_schedule(GameCleanup);
     }
 }

@@ -3,6 +3,7 @@ use bevy_prototype_lyon::prelude::*;
 use crate::AppState;
 use super::FrameStage;
 use super::hit::{HitEvent, distinct_hit_events};
+use super::manager::GameCleanup;
 use super::movable::{Movable, MovableTorusConstraint};
 use super::collidable::{Collidable, Collider};
 use super::invulnerable::{Invulnerable, TestInvulnerable};
@@ -26,7 +27,7 @@ impl Plugin for BulletPlugin {
                 .in_set(FrameStage::CollisionEffect)
                 .after(FrameStage::Collision),
             destroy_bullets_system
-                .in_schedule(OnExit(AppState::Game))
+                .in_schedule(GameCleanup)
         ));
     }
 }
