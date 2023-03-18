@@ -127,9 +127,15 @@ fn status_text_update_system(
     mut status_text: Query<&mut Text, With<StatusText>>
 ) {
     if let Some(mut status_text) = status_text.get_single_mut().ok() {
-        status_text.sections[1].value = format!("{}", game.player_points);
-        status_text.sections[3].value = format!("{}", game.player_lives_remaining);
+        write_u32(&mut status_text.sections[1].value, game.player_points);
+        write_u32(&mut status_text.sections[3].value, game.player_lives_remaining);
     }
+}
+
+fn write_u32(output: &mut String, value: u32) {
+    use std::fmt::Write;
+    output.clear();
+    write!(output, "{}", value).unwrap();
 }
 
 fn debug_text_update_system(
@@ -138,27 +144,22 @@ fn debug_text_update_system(
     mut debug_text: Query<&mut Text, With<DebugText>>
 ) {
     if let Some(mut debug_text) = debug_text.get_single_mut().ok() {
-        let debug_s = &mut debug_text.sections[0].value;
-        debug_s.clear();
-        write_debug_info_text(&diag, &game, debug_s).unwrap();
+        write_debug_info(&mut debug_text.sections[0].value, &diag, &game);
     }
 }
 
-fn write_debug_info_text(
-    diag: &Diagnostics,
-    game: &GameManager,
-    w: &mut impl std::fmt::Write
-) -> Result<(), std::fmt::Error> {
+fn write_debug_info(output: &mut String, diag: &Diagnostics, game: &GameManager) {
+    use std::fmt::Write;
+    output.clear();
     // FPS
     if let Some(fps) = diag.get(FrameTimeDiagnosticsPlugin::FPS) {
         if let Some(avg) = fps.average() {
-            writeln!(w, "fps: {avg:.2}")?;
+            writeln!(output, "fps: {avg:.2}").unwrap();
         }
     };
     // Game state
-    writeln!(w, "asteroids on screen: {}", game.debug_asteroid_count_on_screen)?;
-    writeln!(w, "asteroids pending spawn: {}", game.scheduled_asteroid_spawns.len())?;
-    writeln!(w, "player state: {:?}", game.player_state)?;
-    writeln!(w, "alien state: {:?}", game.alien_state)?;
-    Ok(())
+    writeln!(output, "asteroids on screen: {}", game.debug_asteroid_count_on_screen).unwrap();
+    writeln!(output, "asteroids pending spawn: {}", game.scheduled_asteroid_spawns.len()).unwrap();
+    writeln!(output, "player state: {:?}", game.player_state).unwrap();
+    writeln!(output, "alien state: {:?}", game.alien_state).unwrap();
 }

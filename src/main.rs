@@ -41,6 +41,7 @@ fn main() {
         // bevy_prototype_lyon
         .insert_resource(Msaa::Sample4)
         .add_plugin(ShapePlugin)
+        // Game
         .add_plugins(game::GamePluginGroup)
         .add_plugin(splash_screen::SplashScreenPlugin)
         .add_plugin(game_over_screen::GameOverScreenPlugin)
