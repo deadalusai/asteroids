@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::AppState;
+use crate::{AppState, game::movable::MovableGlobalState};
 
 // Plugins
 
@@ -26,7 +26,8 @@ struct PauseRoot;
 
 fn pause_setup_system(
     mut commands: Commands,
-    asset_server: Res<AssetServer>
+    asset_server: Res<AssetServer>,
+    mut movable_state: ResMut<MovableGlobalState>,
 ) {
     let font_light = asset_server.load(crate::asset_paths::FONT_MONO_LIGHT);
 
@@ -73,14 +74,24 @@ fn pause_setup_system(
                 .with_style(margin_style.clone())
             );
         });
+
+    // Disable movables
+    movable_state.enabled = false;
 }
 
-fn pause_cleanup_system(mut commands: Commands, fragments: Query<Entity, With<PauseRoot>>) {
+fn pause_cleanup_system(
+    mut commands: Commands,
+    fragments: Query<Entity, With<PauseRoot>>,
+    mut movable_state: ResMut<MovableGlobalState>,
+) {
     for entity in fragments.iter() {
         commands
             .entity(entity)
             .despawn_recursive();
     }
+
+    // Re-enable movables
+    movable_state.enabled = true;
 }
 
 fn pause_keyboard_system(

@@ -101,6 +101,7 @@ fn game_cleanup_system(
     world: &mut World
 )
 {
+    // If the user enters the main menu, clean up any running game state
     let is_game_initialized = world.get_resource::<GameManager>().is_some();
     if is_game_initialized {
         world.run_schedule(GameCleanup);

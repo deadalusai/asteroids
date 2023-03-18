@@ -2,24 +2,34 @@ use bevy::prelude::*;
 use super::manager::WorldBoundaries;
 use super::FrameStage;
 
-// Component for entities which are moving (basically everything)
+// Components for entities which are moving (basically everything)
+
+#[derive(Resource)]
+pub struct MovableGlobalState {
+    pub enabled: bool,
+}
 
 pub struct MovablePlugin;
 
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((
-            movable_system
-                .in_set(FrameStage::Movement)
-                .after(FrameStage::Input),
-            movable_torus_constraint_system
-                .in_set(FrameStage::Movement)
-                .after(FrameStage::Start)
-                .after(movable_system),
-            movable_update_transform_system
-                .in_set(FrameStage::Movement)
-                .after(movable_torus_constraint_system)
-        ));
+
+        app.insert_resource(MovableGlobalState { enabled: true });
+        app.add_systems(
+            (
+                movable_system
+                    .in_set(FrameStage::Movement)
+                    .after(FrameStage::Input),
+                movable_torus_constraint_system
+                    .in_set(FrameStage::Movement)
+                    .after(FrameStage::Start)
+                    .after(movable_system),
+                movable_update_transform_system
+                    .in_set(FrameStage::Movement)
+                    .after(movable_torus_constraint_system)
+            )
+            .distributive_run_if(|s: Res<MovableGlobalState>| s.enabled)
+        );
     }
 }
 
