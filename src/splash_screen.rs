@@ -9,16 +9,22 @@ pub struct SplashScreenPlugin;
 
 impl Plugin for SplashScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((
-            menu_setup_system
-                .in_schedule(OnEnter(AppState::Menu)),
+        app.add_systems(
+            OnEnter(AppState::Menu),
+            (
+                menu_setup_system,
+                game_cleanup_system,
+            )
+        );
+        app.add_systems(
+            OnExit(AppState::Menu),
+            menu_cleanup_system,
+        );
+        app.add_systems(
+            Update, 
             menu_keyboard_system
-                .in_set(OnUpdate(AppState::Menu)),
-            menu_cleanup_system
-                .in_schedule(OnExit(AppState::Menu)),
-            game_cleanup_system
-                .in_schedule(OnEnter(AppState::Menu)),
-        ));
+                .run_if(in_state(AppState::Menu))
+        );
     }
 }
 
@@ -56,7 +62,8 @@ fn menu_setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
             MenuRoot,
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,

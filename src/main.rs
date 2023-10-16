@@ -40,13 +40,15 @@ fn main() {
         .add_state::<AppState>()
         // bevy_prototype_lyon
         .insert_resource(Msaa::Sample4)
-        .add_plugin(ShapePlugin)
+        .add_plugins(ShapePlugin)
         // Game
-        .add_plugins(game::GamePluginGroup)
-        .add_plugin(splash_screen::SplashScreenPlugin)
-        .add_plugin(game_over_screen::GameOverScreenPlugin)
-        .add_plugin(pause_screen::PauseScreenPlugin)
-        .add_startup_system(startup_system)
+        .add_plugins((
+            game::GamePluginGroup,
+            splash_screen::SplashScreenPlugin,
+            game_over_screen::GameOverScreenPlugin,
+            pause_screen::PauseScreenPlugin
+        ))
+        .add_systems(Startup, startup_system)
         .run();
 }
 

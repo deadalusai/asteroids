@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, Diagnostics};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, DiagnosticsStore};
 
 use crate::AppState;
 use super::manager::GameManager;
@@ -10,17 +10,23 @@ pub struct HeadsUpDisplayPlugin;
 
 impl Plugin for HeadsUpDisplayPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(FrameTimeDiagnosticsPlugin::default());
-        app.add_systems((
+        app.add_plugins(FrameTimeDiagnosticsPlugin::default());
+        app.add_systems(
+            OnEnter(AppState::Game),
             setup_system
-                .in_schedule(OnEnter(AppState::Game)),
-            status_text_update_system
-                .in_set(OnUpdate(AppState::Game)),
-            debug_text_update_system
-                .in_set(OnUpdate(AppState::Game)),
+        );
+        app.add_systems(
+            Update,
+            (
+                status_text_update_system,
+                debug_text_update_system,
+            )
+            .run_if(in_state(AppState::Game))
+        );
+        app.add_systems(
+            OnExit(AppState::Game),
             destroy_system
-                .in_schedule(OnExit(AppState::Game)),
-        ));
+        );
     }
 }
 
@@ -70,12 +76,9 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(15.0),
-                left: Val::Px(15.0),
-                ..default()
-            },
             justify_content: JustifyContent::FlexEnd,
+            top: Val::Px(15.0),
+            left: Val::Px(15.0),
             ..default()
         });
 
@@ -98,12 +101,9 @@ fn setup_system(mut commands: Commands, asset_server: Res<AssetServer>) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                bottom: Val::Px(15.0),
-                right: Val::Px(15.0),
-                ..default()
-            },
             justify_content: JustifyContent::FlexStart,
+            bottom: Val::Px(15.0),
+            right: Val::Px(15.0),
             ..default()
         });
 
@@ -140,7 +140,7 @@ fn write_u32(output: &mut String, value: u32) {
 
 fn debug_text_update_system(
     game: Res<GameManager>,
-    diag: Res<Diagnostics>,
+    diag: Res<DiagnosticsStore>,
     mut debug_text: Query<&mut Text, With<DebugText>>
 ) {
     if let Some(mut debug_text) = debug_text.get_single_mut().ok() {
@@ -148,7 +148,7 @@ fn debug_text_update_system(
     }
 }
 
-fn write_debug_info(output: &mut String, diag: &Diagnostics, game: &GameManager) {
+fn write_debug_info(output: &mut String, diag: &DiagnosticsStore, game: &GameManager) {
     use std::fmt::Write;
     output.clear();
     // FPS

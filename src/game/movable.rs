@@ -13,20 +13,19 @@ pub struct MovablePlugin;
 
 impl Plugin for MovablePlugin {
     fn build(&self, app: &mut App) {
-
         app.insert_resource(MovableGlobalState { enabled: true });
         app.add_systems(
+            Update,
             (
                 movable_system
                     .in_set(FrameStage::Movement)
                     .after(FrameStage::Input),
                 movable_torus_constraint_system
                     .in_set(FrameStage::Movement)
-                    .after(FrameStage::Start)
-                    .after(movable_system),
+                    .after(FrameStage::Start),
                 movable_update_transform_system
                     .in_set(FrameStage::Movement)
-                    .after(movable_torus_constraint_system)
+                    .after(movable_torus_constraint_system),
             )
             .distributive_run_if(|s: Res<MovableGlobalState>| s.enabled)
         );

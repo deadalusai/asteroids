@@ -8,14 +8,19 @@ pub struct PauseScreenPlugin;
 
 impl Plugin for PauseScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((
+        app.add_systems(
+            OnEnter(AppState::Pause),
             pause_setup_system
-                .in_schedule(OnEnter(AppState::Pause)),
-            pause_keyboard_system
-                .in_set(OnUpdate(AppState::Pause)),
+        );
+        app.add_systems(
+            OnExit(AppState::Pause),
             pause_cleanup_system
-                .in_schedule(OnExit(AppState::Pause))
-        ));
+        );
+        app.add_systems(
+            Update, 
+            pause_keyboard_system
+                .run_if(in_state(AppState::Pause))
+        );
     }
 }
 
@@ -54,7 +59,8 @@ fn pause_setup_system(
             PauseRoot,
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    height: Val::Percent(100.0),
+                    width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,

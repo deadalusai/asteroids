@@ -14,6 +14,7 @@ impl Plugin for HitPlugin {
     }
 }
 
+#[derive(Event)]
 pub struct HitEvent(pub Entity);
 
 // Helpers

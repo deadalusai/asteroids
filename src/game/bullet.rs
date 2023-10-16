@@ -17,18 +17,19 @@ pub struct BulletPlugin;
 
 impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems((
+        app.add_systems(Update,
             bullet_collision_system
-                .in_set(OnUpdate(AppState::Game))
                 .in_set(FrameStage::Collision)
-                .after(FrameStage::Movement),
+                .after(FrameStage::Movement)
+                .run_if(in_state(AppState::Game))
+        );
+        app.add_systems(Update,
             bullet_despawn_system
-                .in_set(OnUpdate(AppState::Game))
                 .in_set(FrameStage::CollisionEffect)
-                .after(FrameStage::Collision),
-            destroy_bullets_system
-                .in_schedule(GameCleanup)
-        ));
+                .after(FrameStage::Collision)
+                .run_if(in_state(AppState::Game))
+        );
+        app.add_systems(GameCleanup, destroy_bullets_system);
     }
 }
 

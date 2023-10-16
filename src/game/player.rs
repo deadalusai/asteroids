@@ -34,31 +34,34 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PlayerRocketDestroyedEvent>();
-        app.add_systems((
-            player_keyboard_event_system
-                .in_set(OnUpdate(AppState::Game))
-                .in_set(FrameStage::Input),
-            player_bullet_system
-                .in_set(OnUpdate(AppState::Game))
-                .after(FrameStage::Movement),
-            player_update_movable_system
-                .in_set(OnUpdate(AppState::Game))
-                .after(player_keyboard_event_system),
-            rocket_exhaust_update_system
-                .in_set(OnUpdate(AppState::Game))
-                .after(player_keyboard_event_system),
-            player_hit_system
-                .in_set(OnUpdate(AppState::Game))
-                .in_set(FrameStage::CollisionEffect)
-                .after(FrameStage::Collision),
-            player_teardown_system
-                .in_schedule(GameCleanup)
-        ));
+        app.add_systems(
+            Update,
+            (
+                player_keyboard_event_system
+                    .in_set(FrameStage::Input),
+
+                player_bullet_system
+                    .after(FrameStage::Movement),
+
+                player_update_movable_system
+                    .after(player_keyboard_event_system),
+
+                rocket_exhaust_update_system
+                    .after(player_keyboard_event_system),
+
+                player_hit_system
+                    .in_set(FrameStage::CollisionEffect)
+                    .after(FrameStage::Collision),
+            )
+            .run_if(in_state(AppState::Game))
+        );
+        app.add_systems(GameCleanup, player_teardown_system);
     }
 }
 
 // Events
 
+#[derive(Event)]
 pub struct PlayerRocketDestroyedEvent;
 
 // Setup

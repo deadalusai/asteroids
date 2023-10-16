@@ -9,9 +9,10 @@ pub struct InvulnerablePlugin;
 
 impl Plugin for InvulnerablePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(
+        app.add_systems(
+            Update,
             update_invulnerability_system
-                .in_set(OnUpdate(AppState::Game))
+                .run_if(in_state(AppState::Game))
         );
     }
 }

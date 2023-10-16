@@ -19,24 +19,25 @@ pub struct AsteroidPlugin;
 impl Plugin for AsteroidPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<AsteroidDestroyedEvent>();
-        app.add_systems((
+        app.add_systems(Update, 
             asteroid_collision_system
-                .in_set(OnUpdate(AppState::Game))
                 .in_set(FrameStage::Collision)
-                .after(FrameStage::Movement),
+                .after(FrameStage::Movement)
+                .run_if(in_state(AppState::Game))
+        );
+        app.add_systems(Update, 
             asteroid_hit_system
-                .in_set(OnUpdate(AppState::Game))
                 .in_set(FrameStage::CollisionEffect)
-                .after(FrameStage::Collision),
-            destroy_asteroids_system
-                .in_schedule(GameCleanup)
-        ));
+                .after(FrameStage::Collision)
+                .run_if(in_state(AppState::Game))
+        );
+        app.add_systems(GameCleanup, destroy_asteroids_system);
     }
 }
 
 // Events
 
-#[derive(Clone)]
+#[derive(Clone, Event)]
 pub struct AsteroidDestroyedEvent {
     pub size: AsteroidSize,
     pub position: Vec2,

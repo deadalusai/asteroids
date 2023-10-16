@@ -24,22 +24,25 @@ pub struct AlienPlugin;
 impl Plugin for AlienPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<AlienUfoDestroyedEvent>();
-        app.add_systems((
-            alien_bullet_system
-                .in_set(OnUpdate(AppState::Game))
-                .after(FrameStage::Movement),
-            alien_hit_system
-                .in_set(OnUpdate(AppState::Game))
-                .in_set(FrameStage::CollisionEffect)
-                .after(FrameStage::Collision),
-            alien_teardown_system
-                .in_schedule(GameCleanup)
-        ));
+        app.add_systems(
+            Update,
+            (
+                alien_bullet_system
+                    .after(FrameStage::Movement),
+
+                alien_hit_system
+                    .in_set(FrameStage::CollisionEffect)
+                    .after(FrameStage::Collision),
+            )
+            .run_if(in_state(AppState::Game))
+        );
+        app.add_systems(GameCleanup, alien_teardown_system);
     }
 }
 
 // Events
 
+#[derive(Event)]
 pub struct AlienUfoDestroyedEvent;
 
 // Setup

@@ -20,24 +20,26 @@ impl Plugin for GameManagerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(WorldBoundaries::default());
         app.add_schedule(GameCleanup, Schedule::new());
-        app.add_systems((
-            game_teardown_system
-                .in_schedule(GameCleanup),
-            world_boundaries_update_system
-                .in_set(OnUpdate(AppState::Game))
-                .in_set(FrameStage::Start),
-            game_effects_system
-                .in_set(OnUpdate(AppState::Game))
-                .in_set(FrameStage::Start)
-                .after(world_boundaries_update_system),
-            game_events_system
-                .in_set(OnUpdate(AppState::Game)),
-            game_update_system
-                .in_set(OnUpdate(AppState::Game))
-                .after(game_events_system),
-            game_keyboard_system
-                .in_set(OnUpdate(AppState::Game)),
-        ));
+        app.add_systems(
+            Update,
+            (
+                world_boundaries_update_system
+                    .in_set(FrameStage::Start),
+                
+                game_effects_system
+                    .in_set(FrameStage::Start)
+                    .after(world_boundaries_update_system),
+                    
+                game_events_system,
+
+                game_update_system
+                    .after(game_events_system),
+
+                game_keyboard_system
+            )
+            .run_if(in_state(AppState::Game))
+        );
+        app.add_systems(GameCleanup, game_teardown_system);
     }
 }
 
