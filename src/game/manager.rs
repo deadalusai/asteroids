@@ -296,7 +296,7 @@ fn game_effects_system(
         handle_alien_ufo_spawn(&mut commands, &mut rng, &world_boundaries, &assets);
     }
 
-    for spawn in game.scheduled_asteroid_spawns.drain_filter(|s| s.spawn_timer.finished()) {
+    for spawn in game.scheduled_asteroid_spawns.extract_if(|s| s.spawn_timer.finished()) {
         handle_asteroid_spawn(&mut commands, &mut rng, &world_boundaries, &assets, spawn);
     }
 

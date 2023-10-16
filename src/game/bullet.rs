@@ -226,7 +226,7 @@ impl BulletController {
                 }
             },
             BulletControllerState::Cooldown => {
-                // Cooldown completes after one "firing period" as completed
+                // Cooldown completes after one "firing period" has completed
                 // This prevents button mashing from firing faster than the configured fire rate
                 let cooldown_complete = self.timer.just_finished();
                 if cooldown_complete {
